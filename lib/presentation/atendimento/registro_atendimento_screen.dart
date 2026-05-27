@@ -9,6 +9,9 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/gps_service.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/utils/validators.dart';
+import '../../data/models/paciente_model.dart';
+import '../../data/repositories/paciente_repository.dart';
 import '../../data/models/atendimento_model.dart';
 import '../../data/repositories/atendimento_repository.dart';
 import 'bloc/atendimento_bloc.dart';
@@ -36,14 +39,30 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
   File? _fotoCapturada;
   final _cameraService = CameraService();
   final _gpsService = GpsService();
+  final _pacienteRepository = PacienteRepository();
 
   double? _lat;
   double? _lng;
   bool _carregandoGps = false;
+  PacienteModel? _paciente;
+  bool _carregandoPaciente = true;
 
   @override
   void initState() {
     super.initState();
+    _carregarDados();
+  }
+
+  Future<void> _carregarDados() async {
+    setState(() => _carregandoPaciente = true);
+    try {
+      _paciente = await _pacienteRepository.buscarPorId(widget.pacienteId);
+    } catch (e) {
+      debugPrint('Erro ao buscar paciente: $e');
+    }
+    if (mounted) {
+      setState(() => _carregandoPaciente = false);
+    }
     _capturarGpsInicial();
   }
 
@@ -126,10 +145,22 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                           backgroundColor: AppColors.primary,
                           child: Icon(Icons.person, color: Colors.white),
                         ),
-                        title: const Text('Paciente selecionado', style: TextStyle(fontSize: 12)),
-                        subtitle: Text(
-                          'ID: ${widget.pacienteId}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        title: _carregandoPaciente 
+                          ? const LinearProgressIndicator()
+                          : Text(
+                              _paciente?.nome ?? 'Paciente não encontrado',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                            ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_paciente != null)
+                              Text('Idade: ${_paciente!.idade} anos', style: const TextStyle(fontSize: 14)),
+                            Text(
+                              'ID: ${widget.pacienteId}',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -140,11 +171,11 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: _buildTextField(_paController, 'PA (ex: 12/8)', Icons.speed)),
+                        Expanded(child: _buildTextField(_paController, 'PA (ex: 12/8)', Icons.speed, validator: AppValidators.validarCampoObrigatorio)),
                         const SizedBox(width: 8),
-                        Expanded(child: _buildTextField(_fcController, 'FC (bpm)', Icons.favorite, keyboardType: TextInputType.number)),
+                        Expanded(child: _buildTextField(_fcController, 'FC (bpm)', Icons.favorite, keyboardType: TextInputType.number, validator: AppValidators.validarCampoObrigatorio)),
                         const SizedBox(width: 8),
-                        Expanded(child: _buildTextField(_tempController, 'Temp (°C)', Icons.thermostat, keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                        Expanded(child: _buildTextField(_tempController, 'Temp (°C)', Icons.thermostat, keyboardType: const TextInputType.numberWithOptions(decimal: true), validator: AppValidators.validarCampoObrigatorio)),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -314,7 +345,7 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {TextInputType? keyboardType}) {
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {TextInputType? keyboardType, String? Function(String?)? validator}) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
@@ -324,7 +355,7 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       keyboardType: keyboardType,
-      validator: (value) => value == null || value.isEmpty ? 'Obrigatório' : null,
+      validator: validator,
     );
   }
 }

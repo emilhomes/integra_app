@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../core/constants/app_colors.dart';
 import '../../data/models/atendimento_model.dart';
 import '../../data/repositories/atendimento_repository.dart';
@@ -73,44 +75,75 @@ class HistoricoPacienteScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ListTile(
-            leading: const Icon(Icons.event, color: AppColors.primary),
+            leading: const CircleAvatar(
+              backgroundColor: AppColors.primary,
+              child: Icon(Icons.event, color: Colors.white, size: 20),
+            ),
             title: Text(
               DateFormat('dd/MM/yyyy HH:mm').format(atendimento.data),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text('Terapias: ${atendimento.terapias.join(", ")}'),
           ),
+          
+          if (atendimento.terapias.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(
+                spacing: 8,
+                children: atendimento.terapias.map((t) => Chip(
+                  label: Text(t, style: const TextStyle(fontSize: 12)),
+                  backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
+                  side: BorderSide.none,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                )).toList(),
+              ),
+            ),
+
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: Text(
               atendimento.observacoes,
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
             ),
           ),
-          const SizedBox(height: 16),
           
-          // Mapa
+          // Mapa ou Indicador de Localização
           Container(
             height: 150,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: Colors.grey[100],
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
             ),
             clipBehavior: Clip.antiAlias,
             child: hasGps
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.map, color: AppColors.primary),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Lat: ${atendimento.latitude!.toStringAsFixed(4)}, Lng: ${atendimento.longitude!.toStringAsFixed(4)}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
+                ? FlutterMap(
+                    options: MapOptions(
+                      initialCenter: LatLng(atendimento.latitude!, atendimento.longitude!),
+                      initialZoom: 14.0,
+                      interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
                     ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.milhomes.integra',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: LatLng(atendimento.latitude!, atendimento.longitude!),
+                            width: 30,
+                            height: 30,
+                            child: const Icon(
+                              Icons.location_pin,
+                              color: Colors.red,
+                              size: 30,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   )
                 : const Center(
                     child: Row(
@@ -118,7 +151,7 @@ class HistoricoPacienteScreen extends StatelessWidget {
                       children: [
                         Icon(Icons.location_off, color: Colors.grey, size: 16),
                         SizedBox(width: 8),
-                        Text('Localização não registrada', style: TextStyle(color: Colors.grey)),
+                        Text('Localização não registrada', style: TextStyle(color: Colors.grey, fontSize: 12)),
                       ],
                     ),
                   ),

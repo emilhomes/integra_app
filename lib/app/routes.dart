@@ -12,6 +12,8 @@ import '../presentation/atendimento/anamnese_fisica_screen.dart';
 import '../presentation/atendimento/anamnese_social_screen.dart';
 import '../presentation/relatorios/relatorio_clinico_screen.dart';
 import '../presentation/relatorios/relatorio_estagio_screen.dart';
+import '../presentation/agenda/agenda_screen.dart';
+import '../presentation/agenda/novo_agendamento_screen.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -20,6 +22,8 @@ class AppRoutes {
   static const String pacientesCadastro = '/pacientes/cadastro';
   static const String pacientesHistorico = '/pacientes/:id/historico';
   static const String atendimentoNovo = '/atendimento/novo';
+  static const String agenda = '/agenda';
+  static const String agendaNovo = '/agenda/novo';
   static const String anamneseClinica = '/anamnese/clinica';
   static const String anamneseFisica = '/anamnese/fisica';
   static const String anamneseSocial = '/anamnese/social';
@@ -42,7 +46,10 @@ class AppRoutes {
       GoRoute(
         path: pacientes,
         name: 'pacientes',
-        builder: (context, state) => const ListaPacientesScreen(),
+        builder: (context, state) {
+          final modo = state.uri.queryParameters['modo'];
+          return ListaPacientesScreen(modo: modo);
+        },
         routes: [
           GoRoute(
             path: 'cadastro',
@@ -102,6 +109,16 @@ class AppRoutes {
         path: '/relatorios/estagio',
         name: 'relatoriosEstagio',
         builder: (context, state) => const RelatorioEstagioScreen(),
+      ),
+      GoRoute(
+        path: agenda,
+        name: 'agenda',
+        builder: (context, state) => const AgendaScreen(),
+      ),
+      GoRoute(
+        path: agendaNovo,
+        name: 'agendaNovo',
+        builder: (context, state) => const NovoAgendamentoScreen(),
       ),
     ],
   );

@@ -3,8 +3,48 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
 
-class DashboardScreen extends StatelessWidget {
+import '../../data/repositories/agendamento_repository.dart';
+
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final _agendamentoRepository = AgendamentoRepository();
+  bool _carregando = true;
+  int _totalHoje = 0;
+  int _pendentesHoje = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarDados();
+  }
+
+  Future<void> _carregarDados() async {
+    final usuario = AuthService().usuarioAtual;
+    if (usuario == null) return;
+
+    setState(() => _carregando = true);
+    try {
+      final totalHoje = await _agendamentoRepository.buscarHoje(usuario.uid);
+      final pendentesHoje = await _agendamentoRepository.buscarPendentesHoje(usuario.uid);
+      
+      if (mounted) {
+        setState(() {
+          _totalHoje = totalHoje.length;
+          _pendentesHoje = pendentesHoje.length;
+          _carregando = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar dados do dashboard: $e');
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,6 +55,10 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('ÍNTEGRA'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _carregarDados,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -45,17 +89,21 @@ class DashboardScreen extends StatelessWidget {
                 _buildSummaryCard(
                   context,
                   title: 'Agendamentos',
-                  value: '12',
+                  value: _totalHoje.toString(),
                   icon: Icons.calendar_today,
                   color: AppColors.primary,
+                  isLoading: _carregando,
+                  subtitle: _totalHoje == 0 ? 'Nenhum atendimento hoje' : null,
                 ),
                 const SizedBox(width: 16),
                 _buildSummaryCard(
                   context,
                   title: 'Pendentes',
-                  value: '05',
+                  value: _pendentesHoje.toString(),
                   icon: Icons.pending_actions,
                   color: AppColors.secondary,
+                  isLoading: _carregando,
+                  subtitle: _pendentesHoje == 0 ? 'Tudo em dia!' : null,
                 ),
               ],
             ),
@@ -75,19 +123,19 @@ class DashboardScreen extends StatelessWidget {
               context,
               label: 'Novo Atendimento',
               icon: Icons.add_circle_outline,
-              route: '/pacientes',
+              onTap: () => context.go('/pacientes?modo=atendimento'),
             ),
             _buildQuickAccessButton(
               context,
               label: 'Pacientes',
               icon: Icons.people_outline,
-              route: '/pacientes',
+              onTap: () => context.push('/pacientes'),
             ),
             _buildQuickAccessButton(
               context,
               label: 'Relatórios',
               icon: Icons.bar_chart_outlined,
-              route: '/relatorios/clinico',
+              onTap: () => context.push('/relatorios/clinico'),
             ),
           ],
         ),
@@ -105,6 +153,7 @@ class DashboardScreen extends StatelessWidget {
         ],
         onTap: (index) {
           if (index == 1) context.push('/pacientes');
+          if (index == 2) context.push('/agenda');
           if (index == 3) context.push('/relatorios/clinico');
         },
       ),
@@ -116,6 +165,8 @@ class DashboardScreen extends StatelessWidget {
     required String value,
     required IconData icon,
     required Color color,
+    bool isLoading = false,
+    String? subtitle,
   }) {
     return Expanded(
       child: Container(
@@ -128,10 +179,21 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 28),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, color: color, size: 24),
+                if (isLoading)
+                  const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
             Text(
-              value,
+              isLoading ? '...' : value,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -142,9 +204,21 @@ class DashboardScreen extends StatelessWidget {
               title,
               style: TextStyle(
                 fontSize: 14,
+                fontWeight: FontWeight.w600,
                 color: color.withValues(alpha: 0.8),
               ),
             ),
+            if (subtitle != null && !isLoading)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -154,12 +228,12 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildQuickAccessButton(BuildContext context, {
     required String label,
     required IconData icon,
-    required String route,
+    required VoidCallback onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: InkWell(
-        onTap: () => context.push(route),
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

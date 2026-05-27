@@ -5,6 +5,7 @@ class AtendimentoModel {
   final DateTime data;
   final List<String> terapias;
   final String observacoes;
+  final String status;
   final double? latitude;
   final double? longitude;
 
@@ -15,6 +16,7 @@ class AtendimentoModel {
     required this.data,
     required this.terapias,
     required this.observacoes,
+    this.status = 'concluido',
     this.latitude,
     this.longitude,
   });
@@ -27,6 +29,7 @@ class AtendimentoModel {
       'data': data,
       'terapias': terapias,
       'observacoes': observacoes,
+      'status': status,
       'latitude': latitude,
       'longitude': longitude,
     };
@@ -40,6 +43,7 @@ class AtendimentoModel {
       data: _parseDateTime(map['data']),
       terapias: List<String>.from(map['terapias'] ?? []),
       observacoes: map['observacoes'] ?? '',
+      status: map['status'] ?? 'concluido',
       latitude: map['latitude']?.toDouble(),
       longitude: map['longitude']?.toDouble(),
     );

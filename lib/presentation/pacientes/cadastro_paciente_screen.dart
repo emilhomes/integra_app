@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/validators.dart';
 import '../../data/models/paciente_model.dart';
 import '../../data/repositories/paciente_repository.dart';
 import 'bloc/paciente_bloc.dart';
@@ -89,6 +90,7 @@ class _CadastroPacienteScreenState extends State<CadastroPacienteScreen> {
                       label: 'Nome Completo',
                       controller: _nomeController,
                       icon: Icons.person_outline,
+                      validator: AppValidators.validarNome,
                     ),
                     const SizedBox(height: 16),
                     ListTile(
@@ -112,6 +114,7 @@ class _CadastroPacienteScreenState extends State<CadastroPacienteScreen> {
                       controller: _cpfController,
                       icon: Icons.badge_outlined,
                       keyboardType: TextInputType.number,
+                      validator: AppValidators.validarCPF,
                     ),
                     const SizedBox(height: 16),
                     _buildField(
@@ -119,12 +122,14 @@ class _CadastroPacienteScreenState extends State<CadastroPacienteScreen> {
                       controller: _telefoneController,
                       icon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
+                      validator: AppValidators.validarTelefone,
                     ),
                     const SizedBox(height: 16),
                     _buildField(
                       label: 'Endereço',
                       controller: _enderecoController,
                       icon: Icons.location_on_outlined,
+                      validator: AppValidators.validarCampoObrigatorio,
                     ),
                     
                     const SizedBox(height: 32),
@@ -188,6 +193,7 @@ class _CadastroPacienteScreenState extends State<CadastroPacienteScreen> {
     IconData? icon,
     TextInputType? keyboardType,
     int maxLines = 1,
+    String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
@@ -198,12 +204,7 @@ class _CadastroPacienteScreenState extends State<CadastroPacienteScreen> {
       ),
       keyboardType: keyboardType,
       maxLines: maxLines,
-      validator: (value) {
-        if (maxLines == 1 && (value == null || value.isEmpty)) {
-          return 'Campo obrigatório';
-        }
-        return null;
-      },
+      validator: validator,
     );
   }
 }

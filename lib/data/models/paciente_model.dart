@@ -15,6 +15,15 @@ class PacienteModel {
     required this.endereco,
   });
 
+  int get idade {
+    final hoje = DateTime.now();
+    int idade = hoje.year - dataNascimento.year;
+    if (hoje.month < dataNascimento.month || (hoje.month == dataNascimento.month && hoje.day < dataNascimento.day)) {
+      idade--;
+    }
+    return idade;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/utils/validators.dart';
 import 'bloc/auth_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -82,12 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Por favor, insira seu e-mail';
-                          }
-                          return null;
-                        },
+                        validator: AppValidators.validarEmail,
                       ),
                       const SizedBox(height: 16),
                       
@@ -102,12 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         obscureText: true,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Por favor, insira sua senha';
-                          }
-                          return null;
-                        },
+                        validator: AppValidators.validarCampoObrigatorio,
                       ),
                       const SizedBox(height: 32),
                       

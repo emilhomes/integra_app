@@ -6,7 +6,8 @@ import '../../data/repositories/paciente_repository.dart';
 import 'bloc/paciente_bloc.dart';
 
 class ListaPacientesScreen extends StatelessWidget {
-  const ListaPacientesScreen({super.key});
+  final String? modo;
+  const ListaPacientesScreen({super.key, this.modo});
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +15,11 @@ class ListaPacientesScreen extends StatelessWidget {
       create: (context) => PacienteBloc(PacienteRepository())..add(PacienteCarregamentoSolicitado()),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Pacientes'),
+          title: Text(modo == 'atendimento' ? 'Selecionar Paciente' : 'Pacientes'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/dashboard'),
+          ),
         ),
         body: Column(
           children: [
@@ -75,7 +80,13 @@ class ListaPacientesScreen extends StatelessWidget {
                           ),
                           subtitle: Text('ID: ${paciente.id}'),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () => context.push('/pacientes/${paciente.id}/perfil'),
+                          onTap: () {
+                            if (modo == 'atendimento') {
+                              context.push('/atendimento/novo/${paciente.id}');
+                            } else {
+                              context.push('/pacientes/${paciente.id}/perfil');
+                            }
+                          },
                         );
                       },
                     );
