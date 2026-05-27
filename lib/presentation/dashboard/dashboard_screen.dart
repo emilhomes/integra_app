@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
 
+import '../../data/models/usuario_model.dart';
+import '../../data/models/agendamento_model.dart';
 import '../../data/repositories/agendamento_repository.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -14,41 +16,83 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _agendamentoRepository = AgendamentoRepository();
+  final _authService = AuthService();
   bool _carregando = true;
   int _totalHoje = 0;
   int _pendentesHoje = 0;
+  bool _isProfissional = false;
 
   @override
   void initState() {
     super.initState();
     _carregarDados();
+    _verificarErroAcesso();
+  }
+
+  void _verificarErroAcesso() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final uri = GoRouterState.of(context).uri;
+      if (uri.queryParameters['erro'] == 'acesso_negado') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Acesso negado: restrito a Profissionais/Supervisores'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _carregarDados() async {
-    final usuario = AuthService().usuarioAtual;
+    final usuario = _authService.usuarioAtual;
     if (usuario == null) return;
 
     setState(() => _carregando = true);
+    
     try {
-      final totalHoje = await _agendamentoRepository.buscarHoje(usuario.uid);
-      final pendentesHoje = await _agendamentoRepository.buscarPendentesHoje(usuario.uid);
-      
+      final Future<UsuarioModel?> perfilFuture = _authService.buscarPerfilUsuario().catchError((e) {
+        debugPrint('Erro ao buscar perfil: $e');
+        return null;
+      });
+
+      final Future<List<AgendamentoModel>> totalHojeFuture = _agendamentoRepository.buscarHoje(usuario.uid).catchError((e) {
+        debugPrint('Erro ao buscar agendamentos de hoje: $e');
+        return <AgendamentoModel>[];
+      });
+
+      final Future<List<AgendamentoModel>> pendentesHojeFuture = _agendamentoRepository.buscarPendentesHoje(usuario.uid).catchError((e) {
+        debugPrint('Erro ao buscar agendamentos pendentes: $e');
+        return <AgendamentoModel>[];
+      });
+
+      final results = await Future.wait([
+        perfilFuture,
+        totalHojeFuture,
+        pendentesHojeFuture,
+      ]);
+
+      final perfil = results[0] as UsuarioModel?;
+      final totalHoje = results[1] as List<AgendamentoModel>;
+      final pendentesHoje = results[2] as List<AgendamentoModel>;
+
       if (mounted) {
         setState(() {
+          _isProfissional = perfil?.perfilAcesso == 'profissional';
+          debugPrint('DEBUG DASHBOARD: Is Profissional? $_isProfissional');
           _totalHoje = totalHoje.length;
           _pendentesHoje = pendentesHoje.length;
           _carregando = false;
         });
       }
     } catch (e) {
-      debugPrint('Erro ao carregar dados do dashboard: $e');
+      debugPrint('Erro crítico no carregamento do dashboard: $e');
       if (mounted) setState(() => _carregando = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final usuario = AuthService().usuarioAtual;
+    final usuario = _authService.usuarioAtual;
     final nomeUsuario = usuario?.displayName ?? usuario?.email?.split('@').first ?? 'Profissional';
 
     return Scaffold(
@@ -62,7 +106,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              await AuthService().logout();
+              await _authService.logout();
               if (context.mounted) context.go('/login');
             },
           ),
@@ -131,12 +175,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: Icons.people_outline,
               onTap: () => context.push('/pacientes'),
             ),
-            _buildQuickAccessButton(
-              context,
-              label: 'Relatórios',
-              icon: Icons.bar_chart_outlined,
-              onTap: () => context.push('/relatorios/clinico'),
-            ),
+            if (_isProfissional)
+              _buildQuickAccessButton(
+                context,
+                label: 'Relatórios',
+                icon: Icons.bar_chart_outlined,
+                onTap: () => context.push('/relatorios/clinico'),
+              ),
           ],
         ),
       ),
@@ -145,16 +190,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Pacientes'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Agenda'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Relatórios'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Pacientes'),
+          const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Agenda'),
+          if (_isProfissional)
+            const BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Relatórios'),
         ],
         onTap: (index) {
           if (index == 1) context.push('/pacientes');
           if (index == 2) context.push('/agenda');
-          if (index == 3) context.push('/relatorios/clinico');
+          if (index == 3 && _isProfissional) context.push('/relatorios/clinico');
         },
       ),
     );

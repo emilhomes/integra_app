@@ -2,13 +2,13 @@ class UsuarioModel {
   final String id;
   final String nome;
   final String email;
-  final String perfil;
+  final String perfilAcesso; // 'profissional' ou 'estagiario'
 
   const UsuarioModel({
     required this.id,
     required this.nome,
     required this.email,
-    required this.perfil,
+    required this.perfilAcesso,
   });
 
   Map<String, dynamic> toMap() {
@@ -16,7 +16,7 @@ class UsuarioModel {
       'id': id,
       'nome': nome,
       'email': email,
-      'perfil': perfil,
+      'perfilAcesso': perfilAcesso,
     };
   }
 
@@ -25,7 +25,7 @@ class UsuarioModel {
       id: map['id'] ?? '',
       nome: map['nome'] ?? '',
       email: map['email'] ?? '',
-      perfil: map['perfil'] ?? '',
+      perfilAcesso: map['perfilAcesso'] ?? 'estagiario',
     );
   }
 }

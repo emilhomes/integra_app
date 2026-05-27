@@ -14,6 +14,7 @@ import '../presentation/relatorios/relatorio_clinico_screen.dart';
 import '../presentation/relatorios/relatorio_estagio_screen.dart';
 import '../presentation/agenda/agenda_screen.dart';
 import '../presentation/agenda/novo_agendamento_screen.dart';
+import '../core/services/auth_service.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -104,6 +105,14 @@ class AppRoutes {
         path: '/relatorios/clinico',
         name: 'relatoriosClinico',
         builder: (context, state) => const RelatorioClinicoScreen(),
+        redirect: (context, state) async {
+          final auth = AuthService();
+          final isProf = await auth.isProfissional();
+          if (!isProf) {
+            return '/dashboard?erro=acesso_negado';
+          }
+          return null;
+        },
       ),
       GoRoute(
         path: '/relatorios/estagio',

@@ -21,9 +21,56 @@ class RelatorioClinicoScreen extends StatefulWidget {
 class _RelatorioClinicoScreenState extends State<RelatorioClinicoScreen> {
   final List<String> _especialidades = ['Todos', 'Acupuntura', 'Nutrição', 'Fisioterapia', 'Psicologia'];
   String _especialidadeSelecionada = 'Todos';
+  bool? _isProfissional;
+  bool _carregandoPerfil = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _verificarAcesso();
+  }
+
+  Future<void> _verificarAcesso() async {
+    final auth = AuthService();
+    final isProf = await auth.isProfissional();
+    if (mounted) {
+      setState(() {
+        _isProfissional = isProf;
+        _carregandoPerfil = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_carregandoPerfil) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_isProfissional == false) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Acesso Negado')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock_outline, size: 64, color: AppColors.error),
+              const SizedBox(height: 16),
+              const Text(
+                'Acesso restrito a Profissionais/Supervisores',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Voltar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final auth = AuthService();
     return BlocProvider(
       create: (context) => RelatorioBloc(
