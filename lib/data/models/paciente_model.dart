@@ -5,6 +5,7 @@ class PacienteModel {
   final DateTime dataNascimento;
   final String telefone;
   final String endereco;
+  final String? fotoPath;
 
   const PacienteModel({
     required this.id,
@@ -13,6 +14,7 @@ class PacienteModel {
     required this.dataNascimento,
     required this.telefone,
     required this.endereco,
+    this.fotoPath,
   });
 
   int get idade {
@@ -32,6 +34,7 @@ class PacienteModel {
       'dataNascimento': dataNascimento,
       'telefone': telefone,
       'endereco': endereco,
+      'fotoPath': fotoPath,
     };
   }
 
@@ -43,6 +46,7 @@ class PacienteModel {
       dataNascimento: _parseDateTime(map['dataNascimento']),
       telefone: map['telefone'] ?? '',
       endereco: map['endereco'] ?? '',
+      fotoPath: map['fotoPath'],
     );
   }
 
@@ -57,5 +61,25 @@ class PacienteModel {
     } catch (_) {
       return DateTime.now();
     }
+  }
+
+  PacienteModel copyWith({
+    String? id,
+    String? nome,
+    String? cpf,
+    DateTime? dataNascimento,
+    String? telefone,
+    String? endereco,
+    String? fotoPath,
+  }) {
+    return PacienteModel(
+      id: id ?? this.id,
+      nome: nome ?? this.nome,
+      cpf: cpf ?? this.cpf,
+      dataNascimento: dataNascimento ?? this.dataNascimento,
+      telefone: telefone ?? this.telefone,
+      endereco: endereco ?? this.endereco,
+      fotoPath: fotoPath ?? this.fotoPath,
+    );
   }
 }

@@ -10,10 +10,90 @@ import '../atendimento/bloc/atendimento_bloc.dart';
 import '../../core/services/gps_service.dart';
 import '../../core/services/storage_service.dart';
 
-class HistoricoPacienteScreen extends StatelessWidget {
+class HistoricoPacienteScreen extends StatefulWidget {
   final String pacienteId;
 
   const HistoricoPacienteScreen({super.key, required this.pacienteId});
+
+  @override
+  State<HistoricoPacienteScreen> createState() => _HistoricoPacienteScreenState();
+}
+
+class _HistoricoPacienteScreenState extends State<HistoricoPacienteScreen> {
+  final _atendimentoRepository = AtendimentoRepository();
+  List<AtendimentoModel> _todosAtendimentos = [];
+  List<AtendimentoModel> _atendimentosFiltrados = [];
+  bool _carregando = true;
+
+  String _terapiaFiltro = 'Todos';
+  DateTimeRange? _periodoFiltro;
+
+  final List<String> _filtrosTerapia = [
+    'Todos', 'Acupuntura', 'Massagem', 'Ventosaterapia', 'Aromaterapia', 'Reiki'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarHistorico();
+  }
+
+  Future<void> _carregarHistorico() async {
+    setState(() => _carregando = true);
+    try {
+      _todosAtendimentos = await _atendimentoRepository.buscarPorPaciente(widget.pacienteId);
+      _atendimentosFiltrados = _todosAtendimentos;
+    } catch (e) {
+      debugPrint('Erro ao carregar histórico: $e');
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  void _aplicarFiltros() {
+    setState(() {
+      _atendimentosFiltrados = _todosAtendimentos.where((a) {
+        final matchesTerapia = _terapiaFiltro == 'Todos' || a.terapias.contains(_terapiaFiltro);
+        
+        bool matchesPeriodo = true;
+        if (_periodoFiltro != null) {
+          final dataAtendimento = DateTime(a.data.year, a.data.month, a.data.day);
+          matchesPeriodo = dataAtendimento.isAfter(_periodoFiltro!.start.subtract(const Duration(days: 1))) &&
+                           dataAtendimento.isBefore(_periodoFiltro!.end.add(const Duration(days: 1)));
+        }
+
+        return matchesTerapia && matchesPeriodo;
+      }).toList();
+    });
+  }
+
+  Future<void> _selecionarPeriodo() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: _periodoFiltro,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _periodoFiltro = picked;
+      });
+      _aplicarFiltros();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,35 +111,113 @@ class HistoricoPacienteScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Histórico do Paciente'),
         ),
-        body: FutureBuilder<List<AtendimentoModel>>(
-          future: AtendimentoRepository().buscarPorPaciente(pacienteId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(child: Text('Erro ao carregar histórico: ${snapshot.error}'));
-            }
-
-            final atendimentos = snapshot.data ?? [];
-
-            if (atendimentos.isEmpty) {
-              return const Center(
-                child: Text('Nenhum atendimento registrado para este paciente.'),
-              );
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: atendimentos.length,
-              itemBuilder: (context, index) {
-                final atendimento = atendimentos[index];
-                return _buildAtendimentoCard(atendimento);
-              },
-            );
-          },
+        body: Column(
+          children: [
+            _buildFiltrosBar(),
+            if (_terapiaFiltro != 'Todos' || _periodoFiltro != null)
+              _buildActiveFilters(),
+            Expanded(
+              child: _carregando
+                  ? const Center(child: CircularProgressIndicator())
+                  : _atendimentosFiltrados.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _atendimentosFiltrados.length,
+                          itemBuilder: (context, index) {
+                            final atendimento = _atendimentosFiltrados[index];
+                            return _buildAtendimentoCard(atendimento);
+                          },
+                        ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFiltrosBar() {
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          IconButton(
+            onPressed: _selecionarPeriodo,
+            icon: Icon(Icons.calendar_today, color: _periodoFiltro != null ? AppColors.primary : Colors.grey),
+            tooltip: 'Filtrar por período',
+          ),
+          const VerticalDivider(width: 20, indent: 8, endIndent: 8),
+          ..._filtrosTerapia.map((t) => Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: FilterChip(
+                  label: Text(t, style: TextStyle(fontSize: 12, color: _terapiaFiltro == t ? Colors.white : Colors.black87)),
+                  selected: _terapiaFiltro == t,
+                  onSelected: (selected) {
+                    setState(() => _terapiaFiltro = t);
+                    _aplicarFiltros();
+                  },
+                  selectedColor: AppColors.primary,
+                  checkmarkColor: Colors.white,
+                  showCheckmark: false,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveFilters() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          if (_terapiaFiltro != 'Todos')
+            Chip(
+              label: Text(_terapiaFiltro, style: const TextStyle(fontSize: 11)),
+              onDeleted: () {
+                setState(() => _terapiaFiltro = 'Todos');
+                _aplicarFiltros();
+              },
+              deleteIcon: const Icon(Icons.close, size: 14),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              side: BorderSide.none,
+            ),
+          if (_periodoFiltro != null)
+            Chip(
+              label: Text(
+                '${DateFormat('dd/MM').format(_periodoFiltro!.start)} - ${DateFormat('dd/MM').format(_periodoFiltro!.end)}',
+                style: const TextStyle(fontSize: 11),
+              ),
+              onDeleted: () {
+                setState(() => _periodoFiltro = null);
+                _aplicarFiltros();
+              },
+              deleteIcon: const Icon(Icons.close, size: 14),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              side: BorderSide.none,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Nenhum atendimento encontrado para este filtro',
+            style: TextStyle(color: Colors.grey, fontSize: 14),
+          ),
+        ],
       ),
     );
   }
