@@ -8,6 +8,7 @@ class AtendimentoModel {
   final String status;
   final double? latitude;
   final double? longitude;
+  final String? assinaturaPath;
 
   const AtendimentoModel({
     required this.id,
@@ -19,6 +20,7 @@ class AtendimentoModel {
     this.status = 'concluido',
     this.latitude,
     this.longitude,
+    this.assinaturaPath,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +34,7 @@ class AtendimentoModel {
       'status': status,
       'latitude': latitude,
       'longitude': longitude,
+      'assinaturaPath': assinaturaPath,
     };
   }
 
@@ -46,6 +49,7 @@ class AtendimentoModel {
       status: map['status'] ?? 'concluido',
       latitude: map['latitude']?.toDouble(),
       longitude: map['longitude']?.toDouble(),
+      assinaturaPath: map['assinaturaPath'],
     );
   }
 
@@ -58,5 +62,31 @@ class AtendimentoModel {
     } catch (_) {
       return DateTime.now();
     }
+  }
+
+  AtendimentoModel copyWith({
+    String? id,
+    String? pacienteId,
+    String? profissionalId,
+    DateTime? data,
+    List<String>? terapias,
+    String? observacoes,
+    String? status,
+    double? latitude,
+    double? longitude,
+    String? assinaturaPath,
+  }) {
+    return AtendimentoModel(
+      id: id ?? this.id,
+      pacienteId: pacienteId ?? this.pacienteId,
+      profissionalId: profissionalId ?? this.profissionalId,
+      data: data ?? this.data,
+      terapias: terapias ?? this.terapias,
+      observacoes: observacoes ?? this.observacoes,
+      status: status ?? this.status,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      assinaturaPath: assinaturaPath ?? this.assinaturaPath,
+    );
   }
 }

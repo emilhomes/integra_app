@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -179,6 +180,21 @@ class _RelatorioClinicoScreenState extends State<RelatorioClinicoScreen> {
                       ),
                     ),
                     const SizedBox(height: 40),
+
+                    // Botão Mapa
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/relatorios/mapa'),
+                        icon: const Icon(Icons.map),
+                        label: const Text('Ver Mapa de Atendimentos'),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
                     // Botão PDF
                     SizedBox(

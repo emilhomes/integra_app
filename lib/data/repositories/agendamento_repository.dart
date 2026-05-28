@@ -57,4 +57,24 @@ class AgendamentoRepository {
       throw Exception('Erro ao atualizar status do agendamento: $e');
     }
   }
+
+  Future<void> excluir(String id) async {
+    try {
+      await _firestore.collection(_collection).doc(id).delete();
+    } catch (e) {
+      throw Exception('Erro ao excluir agendamento: $e');
+    }
+  }
+
+  Future<AgendamentoModel?> buscarPorId(String id) async {
+    try {
+      final doc = await _firestore.collection(_collection).doc(id).get();
+      if (doc.exists && doc.data() != null) {
+        return AgendamentoModel.fromMap(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Erro ao buscar agendamento: $e');
+    }
+  }
 }

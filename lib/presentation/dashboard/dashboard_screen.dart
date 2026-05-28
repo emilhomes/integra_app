@@ -6,6 +6,7 @@ import '../../core/services/auth_service.dart';
 import '../../data/models/usuario_model.dart';
 import '../../data/models/agendamento_model.dart';
 import '../../data/repositories/agendamento_repository.dart';
+import '../../core/services/conectividade_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,16 +18,28 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final _agendamentoRepository = AgendamentoRepository();
   final _authService = AuthService();
+  final _conectividadeService = ConectividadeService();
+  
   bool _carregando = true;
   int _totalHoje = 0;
   int _pendentesHoje = 0;
   bool _isProfissional = false;
+  bool _estaOnline = true;
 
   @override
   void initState() {
     super.initState();
     _carregarDados();
     _verificarErroAcesso();
+    _monitorarConexao();
+  }
+
+  void _monitorarConexao() {
+    _conectividadeService.monitorarConexao().listen((online) {
+      if (mounted) {
+        setState(() => _estaOnline = online);
+      }
+    });
   }
 
   void _verificarErroAcesso() {
@@ -117,6 +130,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (!_estaOnline)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.amber[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber[800]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi_off, color: Colors.amber[800], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Modo offline — dados podem estar desatualizados',
+                        style: TextStyle(color: Colors.amber[800], fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Text(
               'Olá, $nomeUsuario!',
               style: const TextStyle(

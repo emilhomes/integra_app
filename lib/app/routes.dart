@@ -14,6 +14,8 @@ import '../presentation/relatorios/relatorio_clinico_screen.dart';
 import '../presentation/relatorios/relatorio_estagio_screen.dart';
 import '../presentation/agenda/agenda_screen.dart';
 import '../presentation/agenda/novo_agendamento_screen.dart';
+import '../presentation/atendimento/assinatura_screen.dart';
+import '../presentation/relatorios/mapa_atendimentos_screen.dart';
 import '../core/services/auth_service.dart';
 
 class AppRoutes {
@@ -23,8 +25,10 @@ class AppRoutes {
   static const String pacientesCadastro = '/pacientes/cadastro';
   static const String pacientesHistorico = '/pacientes/:id/historico';
   static const String atendimentoNovo = '/atendimento/novo';
+  static const String atendimentoAssinatura = '/atendimento/assinatura/:id';
   static const String agenda = '/agenda';
   static const String agendaNovo = '/agenda/novo';
+  static const String relatoriosMapa = '/relatorios/mapa';
   static const String anamneseClinica = '/anamnese/clinica';
   static const String anamneseFisica = '/anamnese/fisica';
   static const String anamneseSocial = '/anamnese/social';
@@ -128,6 +132,26 @@ class AppRoutes {
         path: agendaNovo,
         name: 'agendaNovo',
         builder: (context, state) => const NovoAgendamentoScreen(),
+      ),
+      GoRoute(
+        path: '/agenda/editar/:agendamentoId',
+        name: 'agendaEditar',
+        builder: (context, state) {
+          final id = state.pathParameters['agendamentoId'];
+          return NovoAgendamentoScreen(agendamentoId: id);
+        },
+      ),
+      GoRoute(
+        path: atendimentoAssinatura,
+        name: 'atendimentoAssinatura',
+        builder: (context, state) => AssinaturaScreen(
+          atendimentoId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: relatoriosMapa,
+        name: 'relatoriosMapa',
+        builder: (context, state) => const MapaAtendimentosScreen(),
       ),
     ],
   );

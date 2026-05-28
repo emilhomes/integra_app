@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -265,6 +266,23 @@ class _HistoricoPacienteScreenState extends State<HistoricoPacienteScreen> {
               style: const TextStyle(fontSize: 14, color: Colors.black87),
             ),
           ),
+
+          if (atendimento.assinaturaPath != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  const SizedBox(width: 8),
+                  const Text('Assinado pelo paciente', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => _mostrarAssinatura(atendimento.assinaturaPath!),
+                    child: const Text('Ver Assinatura'),
+                  ),
+                ],
+              ),
+            ),
           
           // Mapa ou Indicador de Localização
           Container(
@@ -315,6 +333,31 @@ class _HistoricoPacienteScreenState extends State<HistoricoPacienteScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _mostrarAssinatura(String path) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Assinatura do Paciente', style: TextStyle(fontWeight: FontWeight.bold)),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                ],
+              ),
+            ),
+            Image.file(File(path), width: double.infinity, fit: BoxFit.contain),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }

@@ -7,9 +7,11 @@ import '../../data/models/agendamento_model.dart';
 import '../../data/models/paciente_model.dart';
 import '../../data/repositories/agendamento_repository.dart';
 import '../../data/repositories/paciente_repository.dart';
+import '../../core/services/notificacao_service.dart';
 
 class NovoAgendamentoScreen extends StatefulWidget {
-  const NovoAgendamentoScreen({super.key});
+  final String? agendamentoId;
+  const NovoAgendamentoScreen({super.key, this.agendamentoId});
 
   @override
   State<NovoAgendamentoScreen> createState() => _NovoAgendamentoScreenState();
@@ -20,7 +22,12 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
   final _pacienteRepository = PacienteRepository();
   final _obsController = TextEditingController();
 
+  AgendamentoModel? _agendamentoParaEditar;
   PacienteModel? _pacienteSelecionado;
+  // Fallback name/id if the full model isn't loaded yet during edit
+  String? _pacienteNomeManual;
+  String? _pacienteIdManual;
+
   DateTime _dataSelecionada = DateTime.now();
   TimeOfDay _horaSelecionada = TimeOfDay.now();
   
@@ -32,11 +39,44 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
   List<PacienteModel> _todosPacientes = [];
   List<PacienteModel> _pacientesFiltrados = [];
   bool _carregandoPacientes = false;
+  bool _carregandoAgendamento = false;
 
   @override
   void initState() {
     super.initState();
     _carregarPacientes();
+    if (widget.agendamentoId != null) {
+      _carregarAgendamentoParaEdicao();
+    }
+  }
+
+  Future<void> _carregarAgendamentoParaEdicao() async {
+    setState(() => _carregandoAgendamento = true);
+    try {
+      final a = await _agendamentoRepository.buscarPorId(widget.agendamentoId!);
+      if (a != null && mounted) {
+        setState(() {
+          _agendamentoParaEditar = a;
+          _dataSelecionada = a.dataHora;
+          _horaSelecionada = TimeOfDay.fromDateTime(a.dataHora);
+          _terapiaSelecionada = a.tipoTerapia;
+          _obsController.text = a.observacoes;
+          _pacienteNomeManual = a.pacienteNome;
+          _pacienteIdManual = a.pacienteId;
+          
+          // Tenta vincular o paciente se a lista já carregou
+          if (_todosPacientes.isNotEmpty) {
+            try {
+              _pacienteSelecionado = _todosPacientes.firstWhere((p) => p.id == a.pacienteId);
+            } catch (_) {}
+          }
+          _carregandoAgendamento = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar agendamento para edição: $e');
+      if (mounted) setState(() => _carregandoAgendamento = false);
+    }
   }
 
   @override
@@ -51,6 +91,16 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
       _todosPacientes = await _pacienteRepository.buscarTodos();
       setState(() {
         _pacientesFiltrados = _todosPacientes;
+        
+        // Se estiver editando e o agendamento já carregou, vincula o paciente
+        if (_agendamentoParaEditar != null) {
+          try {
+            _pacienteSelecionado = _todosPacientes.firstWhere(
+              (p) => p.id == _agendamentoParaEditar!.pacienteId
+            );
+          } catch (_) {}
+        }
+        
         _carregandoPacientes = false;
       });
     } catch (e) {
@@ -71,7 +121,7 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _dataSelecionada,
-      firstDate: DateTime.now(),
+      firstDate: DateTime.now().isBefore(_dataSelecionada) ? DateTime.now() : _dataSelecionada,
       lastDate: DateTime(2030),
     );
     if (picked != null && picked != _dataSelecionada) {
@@ -90,7 +140,10 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
   }
 
   Future<void> _salvar() async {
-    if (_pacienteSelecionado == null || _terapiaSelecionada == null) {
+    final pId = _pacienteSelecionado?.id ?? _pacienteIdManual;
+    final pNome = _pacienteSelecionado?.nome ?? _pacienteNomeManual;
+
+    if (pId == null || pNome == null || _terapiaSelecionada == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione o paciente e a terapia')),
       );
@@ -109,25 +162,32 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
     );
 
     final novoAgendamento = AgendamentoModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      pacienteId: _pacienteSelecionado!.id,
-      pacienteNome: _pacienteSelecionado!.nome,
+      id: _agendamentoParaEditar?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      pacienteId: pId,
+      pacienteNome: pNome,
       profissionalId: usuario.uid,
       dataHora: dataHora,
       tipoTerapia: _terapiaSelecionada!,
       observacoes: _obsController.text,
+      status: _agendamentoParaEditar?.status ?? AgendamentoStatus.agendado,
     );
 
     try {
       await _agendamentoRepository.salvar(novoAgendamento);
+      
+      // Agenda/Atualiza notificação local
+      await NotificacaoService.agendarNotificacao(novoAgendamento);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Agendamento realizado com sucesso!'),
+          SnackBar(
+            content: Text(_agendamentoParaEditar == null 
+              ? 'Agendamento realizado com sucesso!' 
+              : 'Agendamento atualizado com sucesso!'),
             backgroundColor: AppColors.secondary,
           ),
         );
-        context.pop();
+        context.pop(true); // Retorna true para indicar que houve mudança
       }
     } catch (e) {
       if (mounted) {
@@ -140,8 +200,14 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_carregandoAgendamento) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final pacienteDisplay = _pacienteSelecionado?.nome ?? _pacienteNomeManual ?? 'Buscar paciente...';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo Agendamento')),
+      appBar: AppBar(title: Text(_agendamentoParaEditar == null ? 'Novo Agendamento' : 'Editar Agendamento')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -153,7 +219,7 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
               builder: (context, controller) {
                 return SearchBar(
                   controller: controller,
-                  hintText: _pacienteSelecionado?.nome ?? 'Buscar paciente...',
+                  hintText: pacienteDisplay,
                   onChanged: _filtrarPacientes,
                   onTap: () => controller.openView(),
                   leading: const Icon(Icons.search),
@@ -165,7 +231,11 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
                   title: Text(p.nome),
                   subtitle: Text('ID: ${p.id}'),
                   onTap: () {
-                    setState(() => _pacienteSelecionado = p);
+                    setState(() {
+                      _pacienteSelecionado = p;
+                      _pacienteNomeManual = null;
+                      _pacienteIdManual = null;
+                    });
                     controller.closeView(p.nome);
                   },
                 )).toList();

@@ -37,6 +37,7 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
   final List<String> _terapiasSelecionadas = [];
   
   File? _fotoCapturada;
+  String? _assinaturaPath;
   final _cameraService = CameraService();
   final _gpsService = GpsService();
   final _pacienteRepository = PacienteRepository();
@@ -94,6 +95,15 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
     if (foto != null) {
       setState(() {
         _fotoCapturada = foto;
+      });
+    }
+  }
+
+  Future<void> _coletarAssinatura() async {
+    final result = await context.push<String>('/atendimento/assinatura/${widget.pacienteId}');
+    if (result != null) {
+      setState(() {
+        _assinaturaPath = result;
       });
     }
   }
@@ -236,6 +246,31 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                     ],
                     const SizedBox(height: 24),
 
+                    // Assinatura
+                    const Text('Confirmação', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    const SizedBox(height: 8),
+                    if (_assinaturaPath != null)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text('Assinatura coletada', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    OutlinedButton.icon(
+                      onPressed: _coletarAssinatura,
+                      icon: const Icon(Icons.gesture),
+                      label: Text(_assinaturaPath == null ? 'Coletar Assinatura do Paciente' : 'Refazer Assinatura'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.all(16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
                     // Mapa de Localização
                     const Text('Localização do Atendimento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                     const SizedBox(height: 8),
@@ -315,6 +350,7 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                                     observacoes: _obsController.text,
                                     latitude: _lat,
                                     longitude: _lng,
+                                    assinaturaPath: _assinaturaPath,
                                   );
                                   context.read<AtendimentoBloc>().add(
                                     AtendimentoSalvarSolicitado(

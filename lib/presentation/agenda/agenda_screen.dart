@@ -7,6 +7,8 @@ import '../../core/services/auth_service.dart';
 import '../../data/models/agendamento_model.dart';
 import '../../data/repositories/agendamento_repository.dart';
 
+import '../../core/services/notificacao_service.dart';
+
 class AgendaScreen extends StatefulWidget {
   const AgendaScreen({super.key});
 
@@ -44,6 +46,44 @@ class _AgendaScreenState extends State<AgendaScreen> {
     } catch (e) {
       debugPrint('Erro ao carregar agendamentos: $e');
       if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  Future<void> _excluirAgendamento(AgendamentoModel agendamento) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir Agendamento'),
+        content: Text('Tem certeza que deseja excluir o agendamento de ${agendamento.pacienteNome}? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      try {
+        await _agendamentoRepository.excluir(agendamento.id);
+        await NotificacaoService.cancelarNotificacao(agendamento.id);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Agendamento excluído com sucesso'), backgroundColor: Colors.green),
+          );
+          _carregarAgendamentos(_selectedDay!);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao excluir: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
     }
   }
 
@@ -87,7 +127,6 @@ class _AgendaScreenState extends State<AgendaScreen> {
               formatButtonVisible: false,
               titleCentered: true,
             ),
-            // Adicionar marcadores em dias com agendamentos (simplificado por enquanto)
           ),
           const Divider(),
           Expanded(
@@ -112,7 +151,10 @@ class _AgendaScreenState extends State<AgendaScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/agenda/novo'),
+        onPressed: () async {
+          final result = await context.push('/agenda/novo');
+          if (result == true) _carregarAgendamentos(_selectedDay!);
+        },
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -173,17 +215,55 @@ class _AgendaScreenState extends State<AgendaScreen> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusColor),
-                  ),
-                  child: Text(
-                    agendamento.status.name.toUpperCase(),
-                    style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Colors.grey),
+                      onSelected: (value) async {
+                        if (value == 'editar') {
+                          final result = await context.push('/agenda/editar/${agendamento.id}');
+                          if (result == true) _carregarAgendamentos(_selectedDay!);
+                        } else if (value == 'excluir') {
+                          _excluirAgendamento(agendamento);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'editar',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 8),
+                              Text('Editar'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'excluir',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Excluir', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: statusColor),
+                      ),
+                      child: Text(
+                        agendamento.status.name.toUpperCase(),
+                        style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

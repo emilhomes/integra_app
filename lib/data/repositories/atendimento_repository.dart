@@ -5,25 +5,12 @@ class AtendimentoRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _collection = 'atendimentos';
 
-  Future<void> salvar(AtendimentoModel atendimento, {double? latitude, double? longitude}) async {
+  Future<void> salvar(AtendimentoModel atendimento) async {
     try {
-      // Cria uma cópia do modelo com as coordenadas se fornecidas
-      final atendimentoComGps = AtendimentoModel(
-        id: atendimento.id,
-        pacienteId: atendimento.pacienteId,
-        profissionalId: atendimento.profissionalId,
-        data: atendimento.data,
-        terapias: atendimento.terapias,
-        observacoes: atendimento.observacoes,
-        status: atendimento.status,
-        latitude: latitude ?? atendimento.latitude,
-        longitude: longitude ?? atendimento.longitude,
-      );
-
       await _firestore
           .collection(_collection)
-          .doc(atendimentoComGps.id)
-          .set(atendimentoComGps.toMap());
+          .doc(atendimento.id)
+          .set(atendimento.toMap());
     } catch (e) {
       throw Exception('Erro ao salvar atendimento: $e');
     }

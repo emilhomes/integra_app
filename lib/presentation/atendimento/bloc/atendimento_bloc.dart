@@ -55,22 +55,12 @@ class AtendimentoBloc extends Bloc<AtendimentoEvent, AtendimentoState> {
         }
 
         // 3. Salvar no Firestore
-        final atendimentoFinal = AtendimentoModel(
-          id: event.atendimento.id,
-          pacienteId: event.atendimento.pacienteId,
-          profissionalId: event.atendimento.profissionalId,
-          data: event.atendimento.data,
-          terapias: event.atendimento.terapias,
-          observacoes: event.atendimento.observacoes,
-          latitude: posicao?.latitude,
-          longitude: posicao?.longitude,
+        final atendimentoFinal = event.atendimento.copyWith(
+          latitude: posicao?.latitude ?? event.atendimento.latitude,
+          longitude: posicao?.longitude ?? event.atendimento.longitude,
         );
 
-        await _repository.salvar(
-          atendimentoFinal,
-          latitude: posicao?.latitude,
-          longitude: posicao?.longitude,
-        );
+        await _repository.salvar(atendimentoFinal);
         
         emit(AtendimentoSalvo());
       } catch (e) {
