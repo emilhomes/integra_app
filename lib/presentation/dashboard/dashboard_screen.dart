@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
 
 import '../../data/models/usuario_model.dart';
@@ -49,7 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Acesso negado: restrito a Profissionais/Supervisores'),
-            backgroundColor: AppColors.error,
+            backgroundColor: Color(0xFFE02424),
           ),
         );
       }
@@ -91,7 +90,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         setState(() {
           _isProfissional = perfil?.perfilAcesso == 'profissional';
-          debugPrint('DEBUG DASHBOARD: Is Profissional? $_isProfissional');
           _totalHoje = totalHoje.length;
           _pendentesHoje = pendentesHoje.length;
           _carregando = false;
@@ -103,141 +101,190 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  String _getIniciais(String nome) {
+    final partes = nome.trim().split(' ');
+    if (partes.length >= 2) {
+      return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+    } else if (partes.isNotEmpty && partes[0].isNotEmpty) {
+      return partes[0][0].toUpperCase();
+    }
+    return '?';
+  }
+
   @override
   Widget build(BuildContext context) {
     final usuario = _authService.usuarioAtual;
-    final nomeUsuario = usuario?.displayName ?? usuario?.email?.split('@').first ?? 'Profissional';
+    final nomeExibicao = usuario?.displayName ?? usuario?.email?.split('@').first ?? 'Profissional';
+    const primaryColor = Color(0xFF1A56DB);
+    const accentColor = Color(0xFF0E9F6E);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ÍNTEGRA'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _carregarDados,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await _authService.logout();
-              if (context.mounted) context.go('/login');
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!_estaOnline)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.amber[100],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber[800]!),
-                ),
-                child: Row(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          // HEADER COM GRADIENTE
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)],
+              ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!_estaOnline)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.wifi_off, color: Colors.amber[800], size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Modo offline — dados desatualizados',
+                          style: TextStyle(color: Colors.amber[800], fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.wifi_off, color: Colors.amber[800], size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Modo offline — dados podem estar desatualizados',
-                        style: TextStyle(color: Colors.amber[800], fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Bom dia,',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+                        ),
+                        Text(
+                          nomeExibicao.startsWith('Dr') ? nomeExibicao : 'Dr. $nomeExibicao',
+                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 45,
+                          height: 45,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _getIniciais(nomeExibicao),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.logout, color: Colors.white),
+                          onPressed: () async {
+                            await _authService.logout();
+                            if (context.mounted) context.go('/login');
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-            Text(
-              'Olá, $nomeUsuario!',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            // Cards de Resumo
-            Row(
-              children: [
-                _buildSummaryCard(
-                  context,
-                  title: 'Agendamentos',
-                  value: _totalHoje.toString(),
-                  icon: Icons.calendar_today,
-                  color: AppColors.primary,
-                  isLoading: _carregando,
-                  subtitle: _totalHoje == 0 ? 'Nenhum atendimento hoje' : null,
-                ),
-                const SizedBox(width: 16),
-                _buildSummaryCard(
-                  context,
-                  title: 'Pendentes',
-                  value: _pendentesHoje.toString(),
-                  icon: Icons.pending_actions,
-                  color: AppColors.secondary,
-                  isLoading: _carregando,
-                  subtitle: _pendentesHoje == 0 ? 'Tudo em dia!' : null,
+                const SizedBox(height: 12),
+                const Text(
+                  'Tenha um excelente dia de trabalho',
+                  style: TextStyle(color: Colors.white, fontSize: 13),
                 ),
               ],
             ),
-            
-            const SizedBox(height: 32),
-            const Text(
-              'Acesso Rápido',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+          ),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 24),
+                  // CARDS DE RESUMO
+                  Row(
+                    children: [
+                      _buildSummaryCard(
+                        context,
+                        title: 'Agendamentos',
+                        value: _totalHoje.toString(),
+                        icon: Icons.calendar_today,
+                        color: primaryColor,
+                        isLoading: _carregando,
+                      ),
+                      const SizedBox(width: 16),
+                      _buildSummaryCard(
+                        context,
+                        title: 'Pendentes',
+                        value: _pendentesHoje.toString(),
+                        icon: Icons.assignment_outlined,
+                        color: accentColor,
+                        isLoading: _carregando,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Acesso Rápido',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // BOTÕES DE ACESSO RÁPIDO
+                  _buildQuickAccessCard(
+                    context,
+                    label: 'Novo Atendimento',
+                    subtitle: 'Registrar sessão clínica',
+                    icon: Icons.add,
+                    color: primaryColor,
+                    onTap: () => context.go('/pacientes?modo=atendimento'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildQuickAccessCard(
+                    context,
+                    label: 'Pacientes',
+                    subtitle: 'Gerenciar prontuários',
+                    icon: Icons.people_outline,
+                    color: accentColor,
+                    onTap: () => context.push('/pacientes'),
+                  ),
+                  if (_isProfissional) ...[
+                    const SizedBox(height: 12),
+                    _buildQuickAccessCard(
+                      context,
+                      label: 'Relatórios',
+                      subtitle: 'Análises e exportações',
+                      icon: Icons.bar_chart_outlined,
+                      color: const Color(0xFF7C3AED),
+                      onTap: () => context.push('/relatorios/clinico'),
+                    ),
+                  ],
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            
-            // Botões de Acesso Rápido
-            _buildQuickAccessButton(
-              context,
-              label: 'Novo Atendimento',
-              icon: Icons.add_circle_outline,
-              onTap: () => context.go('/pacientes?modo=atendimento'),
-            ),
-            _buildQuickAccessButton(
-              context,
-              label: 'Pacientes',
-              icon: Icons.people_outline,
-              onTap: () => context.push('/pacientes'),
-            ),
-            if (_isProfissional)
-              _buildQuickAccessButton(
-                context,
-                label: 'Relatórios',
-                icon: Icons.bar_chart_outlined,
-                onTap: () => context.push('/relatorios/clinico'),
-              ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Pacientes'),
-          const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Agenda'),
-          if (_isProfissional)
-            const BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Relatórios'),
+          ),
         ],
-        onTap: (index) {
-          if (index == 1) context.push('/pacientes');
-          if (index == 2) context.push('/agenda');
-          if (index == 3 && _isProfissional) context.push('/relatorios/clinico');
-        },
       ),
     );
   }
@@ -248,83 +295,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData icon,
     required Color color,
     bool isLoading = false,
-    String? subtitle,
   }) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.1),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color, size: 24),
-                if (isLoading)
-                  const SizedBox(
-                    height: 16,
-                    width: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(height: 12),
-            Text(
-              isLoading ? '...' : value,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: color,
+            if (isLoading)
+              const SizedBox(height: 32, width: 32, child: CircularProgressIndicator(strokeWidth: 2))
+            else
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-            ),
             Text(
               title,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: color.withValues(alpha: 0.8),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[500],
               ),
             ),
-            if (subtitle != null && !isLoading)
-              Padding(
-                padding: const EdgeInsets.only(top: 4.0),
-                child: Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: color.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildQuickAccessButton(BuildContext context, {
+  Widget _buildQuickAccessCard(BuildContext context, {
     required String label,
+    required String subtitle,
     required IconData icon,
+    required Color color,
     required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -333,24 +375,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+                  color: color,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.primary),
+                child: Icon(icon, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 16),
-              Icon(icon, color: Colors.grey[700]),
-              const SizedBox(width: 16),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
+              Icon(Icons.chevron_right, color: Colors.grey[300]),
             ],
           ),
         ),

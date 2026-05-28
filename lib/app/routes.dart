@@ -16,6 +16,7 @@ import '../presentation/agenda/agenda_screen.dart';
 import '../presentation/agenda/novo_agendamento_screen.dart';
 import '../presentation/atendimento/assinatura_screen.dart';
 import '../presentation/relatorios/mapa_atendimentos_screen.dart';
+import '../presentation/shared/scaffold_with_navbar.dart';
 import '../core/services/auth_service.dart';
 
 class AppRoutes {
@@ -23,15 +24,17 @@ class AppRoutes {
   static const String dashboard = '/dashboard';
   static const String pacientes = '/pacientes';
   static const String pacientesCadastro = '/pacientes/cadastro';
+  static const String pacientesPerfil = '/pacientes/:id/perfil';
   static const String pacientesHistorico = '/pacientes/:id/historico';
-  static const String atendimentoNovo = '/atendimento/novo';
+  static const String atendimentoNovo = '/atendimento/novo/:pacienteId';
   static const String atendimentoAssinatura = '/atendimento/assinatura/:id';
   static const String agenda = '/agenda';
   static const String agendaNovo = '/agenda/novo';
+  static const String agendaEditar = '/agenda/editar/:agendamentoId';
   static const String relatoriosMapa = '/relatorios/mapa';
-  static const String anamneseClinica = '/anamnese/clinica';
-  static const String anamneseFisica = '/anamnese/fisica';
-  static const String anamneseSocial = '/anamnese/social';
+  static const String anamneseClinica = '/anamnese/clinica/:pacienteId';
+  static const String anamneseFisica = '/anamnese/fisica/:pacienteId';
+  static const String anamneseSocial = '/anamnese/social/:pacienteId';
   static const String relatoriosClinico = '/relatorios/clinico';
   static const String relatoriosEstagio = '/relatorios/estagio';
 
@@ -43,90 +46,95 @@ class AppRoutes {
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
-      GoRoute(
-        path: dashboard,
-        name: 'dashboard',
-        builder: (context, state) => const DashboardScreen(),
-      ),
-      GoRoute(
-        path: pacientes,
-        name: 'pacientes',
-        builder: (context, state) {
-          final modo = state.uri.queryParameters['modo'];
-          return ListaPacientesScreen(modo: modo);
-        },
+      // SHELL ROUTE PARA TELAS COM NAVBAR
+      ShellRoute(
+        builder: (context, state, child) => ScaffoldWithNavBar(child: child),
         routes: [
           GoRoute(
-            path: 'cadastro',
-            name: 'pacientesCadastro',
-            builder: (context, state) => const CadastroPacienteScreen(),
+            path: dashboard,
+            name: 'dashboard',
+            builder: (context, state) => const DashboardScreen(),
           ),
           GoRoute(
-            path: ':id/perfil',
-            name: 'pacientesPerfil',
-            builder: (context, state) => PerfilPacienteScreen(
-              pacienteId: state.pathParameters['id']!,
-            ),
+            path: pacientes,
+            name: 'pacientes',
+            builder: (context, state) {
+              final modo = state.uri.queryParameters['modo'];
+              return ListaPacientesScreen(modo: modo);
+            },
           ),
           GoRoute(
-            path: ':id/historico',
-            name: 'pacientesHistorico',
-            builder: (context, state) => HistoricoPacienteScreen(
-              pacienteId: state.pathParameters['id']!,
-            ),
+            path: agenda,
+            name: 'agenda',
+            builder: (context, state) => const AgendaScreen(),
+          ),
+          GoRoute(
+            path: relatoriosClinico,
+            name: 'relatoriosClinico',
+            builder: (context, state) => const RelatorioClinicoScreen(),
+            redirect: (context, state) async {
+              final auth = AuthService();
+              final isProf = await auth.isProfissional();
+              if (!isProf) {
+                return '/dashboard?erro=acesso_negado';
+              }
+              return null;
+            },
           ),
         ],
       ),
+      // ROTAS FORA DO SHELL (SEM NAVBAR)
       GoRoute(
-        path: '/atendimento/novo/:pacienteId',
+        path: pacientesCadastro,
+        name: 'pacientesCadastro',
+        builder: (context, state) => const CadastroPacienteScreen(),
+      ),
+      GoRoute(
+        path: pacientesPerfil,
+        name: 'pacientesPerfil',
+        builder: (context, state) => PerfilPacienteScreen(
+          pacienteId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: pacientesHistorico,
+        name: 'pacientesHistorico',
+        builder: (context, state) => HistoricoPacienteScreen(
+          pacienteId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: atendimentoNovo,
         name: 'atendimentoNovo',
         builder: (context, state) => RegistroAtendimentoScreen(
           pacienteId: state.pathParameters['pacienteId']!,
         ),
       ),
       GoRoute(
-        path: '/anamnese/clinica/:pacienteId',
+        path: anamneseClinica,
         name: 'anamneseClinica',
         builder: (context, state) => AnamneseClinicaScreen(
           pacienteId: state.pathParameters['pacienteId']!,
         ),
       ),
       GoRoute(
-        path: '/anamnese/fisica/:pacienteId',
+        path: anamneseFisica,
         name: 'anamneseFisica',
         builder: (context, state) => AnamneseFisicaScreen(
           pacienteId: state.pathParameters['pacienteId']!,
         ),
       ),
       GoRoute(
-        path: '/anamnese/social/:pacienteId',
+        path: anamneseSocial,
         name: 'anamneseSocial',
         builder: (context, state) => AnamneseSocialScreen(
           pacienteId: state.pathParameters['pacienteId']!,
         ),
       ),
       GoRoute(
-        path: '/relatorios/clinico',
-        name: 'relatoriosClinico',
-        builder: (context, state) => const RelatorioClinicoScreen(),
-        redirect: (context, state) async {
-          final auth = AuthService();
-          final isProf = await auth.isProfissional();
-          if (!isProf) {
-            return '/dashboard?erro=acesso_negado';
-          }
-          return null;
-        },
-      ),
-      GoRoute(
-        path: '/relatorios/estagio',
+        path: relatoriosEstagio,
         name: 'relatoriosEstagio',
         builder: (context, state) => const RelatorioEstagioScreen(),
-      ),
-      GoRoute(
-        path: agenda,
-        name: 'agenda',
-        builder: (context, state) => const AgendaScreen(),
       ),
       GoRoute(
         path: agendaNovo,
@@ -134,7 +142,7 @@ class AppRoutes {
         builder: (context, state) => const NovoAgendamentoScreen(),
       ),
       GoRoute(
-        path: '/agenda/editar/:agendamentoId',
+        path: agendaEditar,
         name: 'agendaEditar',
         builder: (context, state) {
           final id = state.pathParameters['agendamentoId'];
