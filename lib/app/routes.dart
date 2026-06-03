@@ -1,11 +1,13 @@
 import 'package:go_router/go_router.dart';
 // Importações das telas (placeholders por enquanto)
+import '../data/models/atendimento_model.dart';
 import '../presentation/auth/login_screen.dart';
 import '../presentation/dashboard/dashboard_screen.dart';
 import '../presentation/pacientes/lista_pacientes_screen.dart';
 import '../presentation/pacientes/cadastro_paciente_screen.dart';
 import '../presentation/pacientes/perfil_paciente_screen.dart';
 import '../presentation/pacientes/historico_paciente_screen.dart';
+import '../presentation/pacientes/analise_paciente_screen.dart';
 import '../presentation/atendimento/registro_atendimento_screen.dart';
 import '../presentation/atendimento/anamnese_clinica_screen.dart';
 import '../presentation/atendimento/anamnese_fisica_screen.dart';
@@ -48,7 +50,7 @@ class AppRoutes {
       ),
       // SHELL ROUTE PARA TELAS COM NAVBAR
       ShellRoute(
-        builder: (context, state, child) => ScaffoldWithNavBar(child: child),
+        builder: (context, state, child) => ScaffoldWithNavbar(child: child),
         routes: [
           GoRoute(
             path: dashboard,
@@ -122,6 +124,7 @@ class AppRoutes {
         name: 'anamneseFisica',
         builder: (context, state) => AnamneseFisicaScreen(
           pacienteId: state.pathParameters['pacienteId']!,
+          pontosIniciais: state.extra as List<Map<String, dynamic>>?,
         ),
       ),
       GoRoute(
@@ -129,6 +132,14 @@ class AppRoutes {
         name: 'anamneseSocial',
         builder: (context, state) => AnamneseSocialScreen(
           pacienteId: state.pathParameters['pacienteId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pacientes/:id/analise',
+        name: 'pacientesAnalise',
+        builder: (context, state) => AnalisePacienteScreen(
+          pacienteId: state.pathParameters['id']!,
+          atendimentos: state.extra as List<AtendimentoModel>,
         ),
       ),
       GoRoute(

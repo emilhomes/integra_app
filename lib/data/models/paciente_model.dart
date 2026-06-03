@@ -7,6 +7,20 @@ class PacienteModel {
   final String endereco;
   final String? fotoPath;
 
+  // Campos de Anamnese Clínica (Persistentes)
+  final String? historicoDoencas;
+  final String? medicamentosEmUso;
+  final String? alergias;
+  final String? antecedentesFamiliares;
+
+  // Campos de Anamnese Social (Persistentes)
+  final String? moradia;
+  final bool? temSaneamento;
+  final String? numResidentes;
+  final String? estadoCivil;
+  final String? rendaFamiliar;
+  final String? acessoSaude;
+
   const PacienteModel({
     required this.id,
     required this.nome,
@@ -15,6 +29,16 @@ class PacienteModel {
     required this.telefone,
     required this.endereco,
     this.fotoPath,
+    this.historicoDoencas,
+    this.medicamentosEmUso,
+    this.alergias,
+    this.antecedentesFamiliares,
+    this.moradia,
+    this.temSaneamento,
+    this.numResidentes,
+    this.estadoCivil,
+    this.rendaFamiliar,
+    this.acessoSaude,
   });
 
   int get idade {
@@ -35,6 +59,16 @@ class PacienteModel {
       'telefone': telefone,
       'endereco': endereco,
       'fotoPath': fotoPath,
+      'historicoDoencas': historicoDoencas,
+      'medicamentosEmUso': medicamentosEmUso,
+      'alergias': alergias,
+      'antecedentesFamiliares': antecedentesFamiliares,
+      'moradia': moradia,
+      'temSaneamento': temSaneamento,
+      'numResidentes': numResidentes,
+      'estadoCivil': estadoCivil,
+      'rendaFamiliar': rendaFamiliar,
+      'acessoSaude': acessoSaude,
     };
   }
 
@@ -47,6 +81,16 @@ class PacienteModel {
       telefone: map['telefone'] ?? '',
       endereco: map['endereco'] ?? '',
       fotoPath: map['fotoPath'],
+      historicoDoencas: map['historicoDoencas'],
+      medicamentosEmUso: map['medicamentosEmUso'],
+      alergias: map['alergias'],
+      antecedentesFamiliares: map['antecedentesFamiliares'],
+      moradia: map['moradia'],
+      temSaneamento: map['temSaneamento'],
+      numResidentes: map['numResidentes'],
+      estadoCivil: map['estadoCivil'],
+      rendaFamiliar: map['rendaFamiliar'],
+      acessoSaude: map['acessoSaude'],
     );
   }
 
@@ -54,8 +98,6 @@ class PacienteModel {
     if (value is DateTime) return value;
     if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
     if (value is String) return DateTime.parse(value);
-    // Generic check for Firestore Timestamp without explicit import if possible,
-    // or just assume if it has toDate it's a Timestamp.
     try {
       return value.toDate();
     } catch (_) {
@@ -71,6 +113,16 @@ class PacienteModel {
     String? telefone,
     String? endereco,
     String? fotoPath,
+    String? historicoDoencas,
+    String? medicamentosEmUso,
+    String? alergias,
+    String? antecedentesFamiliares,
+    String? moradia,
+    bool? temSaneamento,
+    String? numResidentes,
+    String? estadoCivil,
+    String? rendaFamiliar,
+    String? acessoSaude,
   }) {
     return PacienteModel(
       id: id ?? this.id,
@@ -80,6 +132,16 @@ class PacienteModel {
       telefone: telefone ?? this.telefone,
       endereco: endereco ?? this.endereco,
       fotoPath: fotoPath ?? this.fotoPath,
+      historicoDoencas: historicoDoencas ?? this.historicoDoencas,
+      medicamentosEmUso: medicamentosEmUso ?? this.medicamentosEmUso,
+      alergias: alergias ?? this.alergias,
+      antecedentesFamiliares: antecedentesFamiliares ?? this.antecedentesFamiliares,
+      moradia: moradia ?? this.moradia,
+      temSaneamento: temSaneamento ?? this.temSaneamento,
+      numResidentes: numResidentes ?? this.numResidentes,
+      estadoCivil: estadoCivil ?? this.estadoCivil,
+      rendaFamiliar: rendaFamiliar ?? this.rendaFamiliar,
+      acessoSaude: acessoSaude ?? this.acessoSaude,
     );
   }
 }

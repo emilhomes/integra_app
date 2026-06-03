@@ -244,9 +244,34 @@ class _HistoricoPacienteScreenState extends State<HistoricoPacienteScreen> {
             ),
           ),
           
+          if (atendimento.queixaPrincipal != null && atendimento.queixaPrincipal!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Queixa Principal:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary)),
+                  Text(atendimento.queixaPrincipal!, style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+
+          if (atendimento.pa != null || atendimento.fc != null || atendimento.temperatura != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Wrap(
+                spacing: 16,
+                children: [
+                  if (atendimento.pa != null) _buildVitalInfo('PA', atendimento.pa!, Icons.speed),
+                  if (atendimento.fc != null) _buildVitalInfo('FC', '${atendimento.fc} bpm', Icons.favorite),
+                  if (atendimento.temperatura != null) _buildVitalInfo('Temp', '${atendimento.temperatura} °C', Icons.thermostat),
+                ],
+              ),
+            ),
+
           if (atendimento.terapias.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Wrap(
                 spacing: 8,
                 children: atendimento.terapias.map((t) => Chip(
@@ -261,9 +286,15 @@ class _HistoricoPacienteScreenState extends State<HistoricoPacienteScreen> {
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Text(
-              atendimento.observacoes,
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Evolução:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                Text(
+                  atendimento.observacoes,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+              ],
             ),
           ),
 
@@ -359,6 +390,18 @@ class _HistoricoPacienteScreenState extends State<HistoricoPacienteScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildVitalInfo(String label, String value, IconData icon) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: AppColors.primary),
+        const SizedBox(width: 4),
+        Text('$label: ', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(value, style: const TextStyle(fontSize: 12)),
+      ],
     );
   }
 }

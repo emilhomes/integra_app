@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/auth_service.dart';
 
-class ScaffoldWithNavBar extends StatefulWidget {
+import '../../core/constants/app_colors.dart';
+
+class ScaffoldWithNavbar extends StatefulWidget {
   final Widget child;
-  const ScaffoldWithNavBar({super.key, required this.child});
+  const ScaffoldWithNavbar({super.key, required this.child});
 
   @override
-  State<ScaffoldWithNavBar> createState() => _ScaffoldWithNavBarState();
+  State<ScaffoldWithNavbar> createState() => _ScaffoldWithNavbarState();
 }
 
-class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
+class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
   final _authService = AuthService();
   bool _isProfissional = false;
 
@@ -57,7 +59,7 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF1A56DB);
+    const primaryColor = AppColors.primary;
 
     return Scaffold(
       body: widget.child,

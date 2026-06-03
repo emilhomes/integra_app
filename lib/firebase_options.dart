@@ -25,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -72,4 +66,24 @@ class DefaultFirebaseOptions {
     storageBucket: 'integra-app-8793c.firebasestorage.app',
     iosBundleId: 'com.milhomes.integraApp',
   );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyC0v0dYFpdEJsSkbetYaHeivzRqiEpkEsE',
+    appId: '1:745544617763:ios:e356eb14622324007cc696',
+    messagingSenderId: '745544617763',
+    projectId: 'integra-app-8793c',
+    storageBucket: 'integra-app-8793c.firebasestorage.app',
+    iosBundleId: 'com.milhomes.integraApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDkv1ivMs12Cr3ugkG1RLxWoFVq8RsSad0',
+    appId: '1:745544617763:web:c28c448962d7ced67cc696',
+    messagingSenderId: '745544617763',
+    projectId: 'integra-app-8793c',
+    authDomain: 'integra-app-8793c.firebaseapp.com',
+    storageBucket: 'integra-app-8793c.firebasestorage.app',
+    measurementId: 'G-WNBVGRBNN4',
+  );
+
 }

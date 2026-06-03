@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
+import '../shared/silhouette_painter.dart';
 
 class AnamneseFisicaScreen extends StatefulWidget {
   final String pacienteId;
-  const AnamneseFisicaScreen({super.key, required this.pacienteId});
+  final List<Map<String, dynamic>>? pontosIniciais;
+  const AnamneseFisicaScreen({super.key, required this.pacienteId, this.pontosIniciais});
 
   @override
   State<AnamneseFisicaScreen> createState() => _AnamneseFisicaScreenState();
@@ -18,47 +21,77 @@ class MarcacaoPonto {
   MarcacaoPonto(this.x, this.y, this.isDor);
 
   Map<String, dynamic> toMap() => {'x': x, 'y': y, 'tipo': isDor ? 'dor' : 'tensao'};
+  
+  factory MarcacaoPonto.fromMap(Map<String, dynamic> map) {
+    return MarcacaoPonto(
+      map['x']?.toDouble() ?? 0.0,
+      map['y']?.toDouble() ?? 0.0,
+      map['tipo'] == 'dor',
+    );
+  }
 }
 
 class _AnamneseFisicaScreenState extends State<AnamneseFisicaScreen> {
   final List<MarcacaoPonto> _pontos = [];
   final List<bool> _tipoSelecionado = [true, false]; // [Dor, Tensão]
 
-  void _adicionarPonto(Offset localPosition, Size size) {
-    setState(() {
-      _pontos.add(MarcacaoPonto(
-        localPosition.dx / size.width,
-        localPosition.dy / size.height,
-        _tipoSelecionado[0],
-      ));
-    });
+  @override
+  void initState() {
+    super.initState();
+    if (widget.pontosIniciais != null) {
+      _pontos.addAll(widget.pontosIniciais!.map((m) => MarcacaoPonto.fromMap(m)));
+    }
+  }
+
+  void _adicionarPonto(Offset localPosition, Size size, Path silhouettePath) {
+    if (silhouettePath.contains(localPosition)) {
+      setState(() {
+        _pontos.add(MarcacaoPonto(
+          localPosition.dx / size.width,
+          localPosition.dy / size.height,
+          _tipoSelecionado[0],
+        ));
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Toque dentro da silhueta para marcar.'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Anamnese Física')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text('Mapa Corporal', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: AppColors.primary,
+      ),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
+          Padding(
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               children: [
                 Text(
-                  'Mapa Corporal Interativo',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  'Marcação de Pontos',
+                  style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: 1),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
-                  'Toque na silhueta para marcar pontos de dor ou tensão muscular.',
+                  'Toque na silhueta para marcar pontos de dor ou tensão.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
+                  style: GoogleFonts.outfit(color: Colors.grey[600], fontSize: 14),
                 ),
               ],
             ),
           ),
 
-          // Seletor de Tipo
           ToggleButtons(
             isSelected: _tipoSelecionado,
             onPressed: (index) {
@@ -68,19 +101,18 @@ class _AnamneseFisicaScreenState extends State<AnamneseFisicaScreen> {
                 }
               });
             },
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             selectedColor: Colors.white,
             fillColor: _tipoSelecionado[0] ? Colors.red.withValues(alpha: 0.8) : AppColors.secondary,
-            constraints: const BoxConstraints(minHeight: 40, minWidth: 150),
-            children: const [
-              Text('Ponto de Dor'),
-              Text('Tensão Muscular'),
+            constraints: const BoxConstraints(minHeight: 44, minWidth: 150),
+            children: [
+              Text('Dor', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              Text('Tensão', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
             ],
           ),
           
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
-          // Mapa Corporal
           Expanded(
             child: Center(
               child: AspectRatio(
@@ -88,8 +120,9 @@ class _AnamneseFisicaScreenState extends State<AnamneseFisicaScreen> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final size = Size(constraints.maxWidth, constraints.maxHeight);
+                    final silhouettePath = SilhouettePainter.getSilhouettePath(size);
                     return GestureDetector(
-                      onTapDown: (details) => _adicionarPonto(details.localPosition, size),
+                      onTapDown: (details) => _adicionarPonto(details.localPosition, size, silhouettePath),
                       child: CustomPaint(
                         size: size,
                         painter: MapaCorporalPainter(_pontos),
@@ -101,68 +134,44 @@ class _AnamneseFisicaScreenState extends State<AnamneseFisicaScreen> {
             ),
           ),
 
-          // Legenda e Ações
           Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
+            padding: const EdgeInsets.all(32.0),
+            child: Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildLegendItem(Colors.red, 'Ponto de Dor'),
-                    const SizedBox(width: 24),
-                    _buildLegendItem(AppColors.secondary, 'Tensão Muscular', isOutline: true),
-                  ],
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => setState(() => _pontos.clear()),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: Text('Limpar', style: GoogleFonts.outfit(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                  ),
                 ),
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => setState(() => _pontos.clear()),
-                        child: const Text('Limpar Mapa'),
-                      ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final maps = _pontos.map((p) => p.toMap()).toList();
+                      context.pop(maps);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          context.push('/anamnese/social/${widget.pacienteId}');
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Próximo: Anamnese Social', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
+                    child: Text('Confirmar', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 16)),
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildLegendItem(Color color, String label, {bool isOutline = false}) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: isOutline ? Colors.transparent : color,
-            border: isOutline ? Border.all(color: color, width: 2) : null,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
     );
   }
 }
@@ -174,64 +183,44 @@ class MapaCorporalPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.grey.withValues(alpha: 0.3)
+    // Reutiliza SilhouettePainter logicamente
+    final path = SilhouettePainter.getSilhouettePath(size);
+    
+    // Fundo
+    final shadowPaint = Paint()
+      ..color = AppColors.primary.withValues(alpha: 0.05)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12.0)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path.shift(const Offset(4, 6)), shadowPaint);
+
+    final gradientPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          AppColors.primary.withValues(alpha: 0.12),
+          AppColors.primary.withValues(alpha: 0.05),
+        ],
+      ).createShader(path.getBounds())
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path, gradientPaint);
+
+    final strokePaint = Paint()
+      ..color = AppColors.primary.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
+    canvas.drawPath(path, strokePaint);
 
-    // Desenho simplificado da silhueta humana (Frente)
-    final path = Path();
-    double w = size.width;
-    double h = size.height;
-
-    // Cabeça
-    path.addOval(Rect.fromLTWH(w * 0.35, h * 0.02, w * 0.3, h * 0.12));
-    
-    // Pescoço e Ombros
-    path.moveTo(w * 0.45, h * 0.14);
-    path.lineTo(w * 0.4, h * 0.15);
-    path.lineTo(w * 0.15, h * 0.22); // Ombro esquerdo
-    
-    // Braço esquerdo
-    path.lineTo(w * 0.1, h * 0.45);
-    path.lineTo(w * 0.2, h * 0.45);
-    path.lineTo(w * 0.25, h * 0.25);
-    
-    // Tronco
-    path.lineTo(w * 0.25, h * 0.55);
-    
-    // Perna esquerda
-    path.lineTo(w * 0.3, h * 0.95);
-    path.lineTo(w * 0.45, h * 0.95);
-    path.lineTo(w * 0.5, h * 0.65); // Entre-pernas
-    
-    // Perna direita
-    path.lineTo(w * 0.55, h * 0.95);
-    path.lineTo(w * 0.7, h * 0.95);
-    path.lineTo(w * 0.75, h * 0.55);
-    
-    // Tronco volta
-    path.lineTo(w * 0.75, h * 0.25);
-    
-    // Braço direito
-    path.lineTo(w * 0.8, h * 0.45);
-    path.lineTo(w * 0.9, h * 0.45);
-    path.lineTo(w * 0.85, h * 0.22); // Ombro direito
-    
-    path.lineTo(w * 0.6, h * 0.15);
-    path.lineTo(w * 0.55, h * 0.14);
-
-    canvas.drawPath(path, paint);
-
-    // Desenhar Pontos marcados
     for (var ponto in pontos) {
-      final center = Offset(ponto.x * w, ponto.y * h);
-      final pPaint = Paint()
-        ..color = ponto.isDor ? const Color(0xFFEF4444) : const Color(0xFF0E9F6E)
-        ..style = ponto.isDor ? PaintingStyle.fill : PaintingStyle.stroke
-        ..strokeWidth = 2.0;
+      final center = Offset(ponto.x * size.width, ponto.y * size.height);
 
-      canvas.drawCircle(center, 10, pPaint);
+      if (ponto.isDor) {
+        canvas.drawCircle(center, 12, Paint()..color = const Color(0xFFEF4444).withValues(alpha: 0.2)..style = PaintingStyle.fill);
+        canvas.drawCircle(center, 6, Paint()..color = const Color(0xFFEF4444)..style = PaintingStyle.fill);
+      } else {
+        canvas.drawCircle(center, 6, Paint()..color = AppColors.secondary..style = PaintingStyle.fill);
+        canvas.drawCircle(center, 9, Paint()..color = AppColors.secondary..style = PaintingStyle.stroke..strokeWidth = 1.5);
+      }
     }
   }
 

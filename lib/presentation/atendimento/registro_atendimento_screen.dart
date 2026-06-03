@@ -4,9 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/camera_service.dart';
 import '../../core/services/gps_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/utils/validators.dart';
@@ -14,6 +14,7 @@ import '../../data/models/paciente_model.dart';
 import '../../data/repositories/paciente_repository.dart';
 import '../../data/models/atendimento_model.dart';
 import '../../data/repositories/atendimento_repository.dart';
+import '../../core/services/clinical_intelligence_service.dart';
 import 'bloc/atendimento_bloc.dart';
 
 class RegistroAtendimentoScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class RegistroAtendimentoScreen extends StatefulWidget {
 
 class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _queixaController = TextEditingController();
   final _paController = TextEditingController();
   final _fcController = TextEditingController();
   final _tempController = TextEditingController();
@@ -36,9 +38,8 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
   ];
   final List<String> _terapiasSelecionadas = [];
   
-  File? _fotoCapturada;
+  List<Map<String, dynamic>> _pontosDorTensao = [];
   String? _assinaturaPath;
-  final _cameraService = CameraService();
   final _gpsService = GpsService();
   final _pacienteRepository = PacienteRepository();
 
@@ -47,19 +48,37 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
   bool _carregandoGps = false;
   PacienteModel? _paciente;
   bool _carregandoPaciente = true;
+  double? _mediaFCHistorica;
+  List<IntelligenceInsight> _insightsRecentes = [];
+  final _fcFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _carregarDados();
+    _fcFocusNode.addListener(_monitorarSinaisVitais);
   }
 
   Future<void> _carregarDados() async {
     setState(() => _carregandoPaciente = true);
     try {
       _paciente = await _pacienteRepository.buscarPorId(widget.pacienteId);
+      final atendimentos = await AtendimentoRepository().buscarPorPaciente(widget.pacienteId);
+      if (atendimentos.isNotEmpty) {
+        final fcs = atendimentos
+            .where((a) => a.fc != null && double.tryParse(a.fc!) != null)
+            .map((a) => double.parse(a.fc!))
+            .toList();
+        if (fcs.isNotEmpty) {
+          _mediaFCHistorica = fcs.reduce((a, b) => a + b) / fcs.length;
+        }
+
+        // Gera insights para mostrar durante o atendimento
+        final service = ClinicalIntelligenceService();
+        _insightsRecentes = service.generateInsights(atendimentos);
+      }
     } catch (e) {
-      debugPrint('Erro ao buscar paciente: $e');
+      debugPrint('Erro ao buscar dados: $e');
     }
     if (mounted) {
       setState(() => _carregandoPaciente = false);
@@ -81,8 +100,44 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
     }
   }
 
+  void _monitorarSinaisVitais() {
+    // Só dispara o alerta ao perder o foco (terminar de preencher)
+    if (_fcFocusNode.hasFocus) return;
+
+    if (_fcController.text.isEmpty) return;
+    final valor = double.tryParse(_fcController.text);
+    if (valor == null) return;
+
+    String? mensagem;
+    
+    // 1. Alerta por valor absoluto (Taquicardia ou Bradicardia)
+    if (valor > 100) {
+      mensagem = 'Alerta: Frequência Cardíaca Elevada ($valor bpm - Taquicardia).';
+    } else if (valor < 50) {
+      mensagem = 'Alerta: Frequência Cardíaca Baixa ($valor bpm - Bradicardia).';
+    }
+    // 2. Alerta por variação histórica (Mais sensível: > 10 bpm)
+    else if (_mediaFCHistorica != null && (valor - _mediaFCHistorica!).abs() > 10) {
+      mensagem = 'Alerta: Frequência Cardíaca ($valor bpm) fora do padrão habitual (~${_mediaFCHistorica!.toStringAsFixed(0)} bpm).';
+    }
+
+    if (mensagem != null) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensagem, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _fcFocusNode.removeListener(_monitorarSinaisVitais);
+    _fcFocusNode.dispose();
+    _queixaController.dispose();
     _paController.dispose();
     _fcController.dispose();
     _tempController.dispose();
@@ -90,11 +145,14 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
     super.dispose();
   }
 
-  Future<void> _fotografar() async {
-    final foto = await _cameraService.fotografarDocumento();
-    if (foto != null) {
+  Future<void> _abrirMapaCorporal() async {
+    final result = await context.push<List<Map<String, dynamic>>>(
+      '/anamnese/fisica/${widget.pacienteId}',
+      extra: _pontosDorTensao,
+    );
+    if (result != null) {
       setState(() {
-        _fotoCapturada = foto;
+        _pontosDorTensao = result;
       });
     }
   }
@@ -137,68 +195,93 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
         },
         builder: (context, state) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Novo Atendimento')),
+            backgroundColor: AppColors.background,
+            appBar: AppBar(
+              title: Text('Novo Atendimento', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              foregroundColor: AppColors.primary,
+            ),
             body: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Card do Paciente
-                    Card(
-                      elevation: 0,
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: AppColors.primary,
-                          child: Icon(Icons.person, color: Colors.white),
-                        ),
-                        title: _carregandoPaciente 
-                          ? const LinearProgressIndicator()
-                          : Text(
-                              _paciente?.nome ?? 'Paciente não encontrado',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    // Card do Paciente (Simplificado)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
                             ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (_paciente != null)
-                              Text('Idade: ${_paciente!.idade} anos', style: const TextStyle(fontSize: 14)),
-                            Text(
-                              'ID: ${widget.pacienteId}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            child: const Icon(Icons.person, color: AppColors.primary, size: 24),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _carregandoPaciente 
+                                  ? const LinearProgressIndicator()
+                                  : Text(
+                                      _paciente?.nome ?? 'Paciente não encontrado',
+                                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.primary),
+                                    ),
+                                if (_paciente != null)
+                                  Text('${_paciente!.idade} anos • ID: ${widget.pacienteId}', style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600])),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
+
+                    // Avaliação Inicial
+                    _buildSectionTitle('Avaliação Inicial'),
+                    _buildTextArea(_queixaController, 'O que o paciente está sentindo hoje?', label: 'Queixa Principal', icon: Icons.chat_bubble_outline),
+                    const SizedBox(height: 16),
+                    _buildSelectionButton(
+                      onPressed: _abrirMapaCorporal,
+                      icon: Icons.accessibility_new,
+                      label: 'Mapa de Dor/Tensão',
+                      value: _pontosDorTensao.isEmpty ? 'Nenhum ponto marcado' : '${_pontosDorTensao.length} pontos marcados',
+                      isFilled: _pontosDorTensao.isNotEmpty,
+                    ),
+                    const SizedBox(height: 32),
 
                     // Sinais Vitais
-                    const Text('Sinais Vitais', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 16),
+                    _buildSectionTitle('Sinais Vitais'),
                     Row(
                       children: [
-                        Expanded(child: _buildTextField(_paController, 'PA (ex: 12/8)', Icons.speed, validator: AppValidators.validarCampoObrigatorio)),
-                        const SizedBox(width: 8),
-                        Expanded(child: _buildTextField(_fcController, 'FC (bpm)', Icons.favorite, keyboardType: TextInputType.number, validator: AppValidators.validarCampoObrigatorio)),
-                        const SizedBox(width: 8),
-                        Expanded(child: _buildTextField(_tempController, 'Temp (°C)', Icons.thermostat, keyboardType: const TextInputType.numberWithOptions(decimal: true), validator: AppValidators.validarCampoObrigatorio)),
+                        Expanded(child: _buildTextField(_paController, 'PA', Icons.speed, hint: '12/8')),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildTextField(_fcController, 'FC', Icons.favorite, hint: 'bpm', keyboardType: TextInputType.number)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildTextField(_tempController, 'Temp', Icons.thermostat, hint: '°C', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
                     // Terapias
-                    const Text('Terapias Aplicadas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 8),
+                    _buildSectionTitle('Terapias Aplicadas'),
                     Wrap(
                       spacing: 8,
+                      runSpacing: 8,
                       children: _terapiasDisponiveis.map((terapia) {
                         final isSelected = _terapiasSelecionadas.contains(terapia);
                         return FilterChip(
-                          label: Text(terapia),
+                          label: Text(terapia, style: GoogleFonts.outfit(fontSize: 14, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500)),
                           selected: isSelected,
                           onSelected: (selected) {
                             setState(() {
@@ -207,79 +290,41 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                           },
                           selectedColor: AppColors.secondary.withValues(alpha: 0.2),
                           checkmarkColor: AppColors.secondary,
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: isSelected ? AppColors.secondary : Colors.transparent)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
                     // Observações
-                    const Text('Observações Clínicas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _obsController,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: 'Digite as observações...',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Foto
-                    const Text('Documentação', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: _fotografar,
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Fotografar Documento'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.all(16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    if (_fotoCapturada != null) ...[
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(_fotoCapturada!, height: 200, width: double.infinity, fit: BoxFit.cover),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
+                    _buildSectionTitle('Evolução / Observações'),
+                    _buildTextArea(_obsController, 'Relate a evolução do paciente...', icon: Icons.edit_note),
+                    const SizedBox(height: 32),
 
                     // Assinatura
-                    const Text('Confirmação', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 8),
-                    if (_assinaturaPath != null)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_circle, color: Colors.green),
-                            SizedBox(width: 8),
-                            Text('Assinatura coletada', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    OutlinedButton.icon(
+                    _buildSectionTitle('Confirmação'),
+                    _buildSelectionButton(
                       onPressed: _coletarAssinatura,
-                      icon: const Icon(Icons.gesture),
-                      label: Text(_assinaturaPath == null ? 'Coletar Assinatura do Paciente' : 'Refazer Assinatura'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.all(16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                      icon: Icons.gesture,
+                      label: 'Assinatura do Paciente',
+                      value: _assinaturaPath == null ? 'Coleta pendente' : 'Assinatura coletada',
+                      isFilled: _assinaturaPath != null,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
-                    // Mapa de Localização
-                    const Text('Localização do Atendimento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 8),
+                    // Localização
+                    _buildSectionTitle('Localização'),
                     Container(
-                      height: 200,
+                      height: 180,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[300]!),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                        ],
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: _carregandoGps
@@ -289,9 +334,7 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                                   options: MapOptions(
                                     initialCenter: LatLng(_lat!, _lng!),
                                     initialZoom: 15.0,
-                                    interactionOptions: const InteractionOptions(
-                                      flags: InteractiveFlag.none,
-                                    ),
+                                    interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
                                   ),
                                   children: [
                                     TileLayer(
@@ -304,37 +347,20 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                                           point: LatLng(_lat!, _lng!),
                                           width: 40,
                                           height: 40,
-                                          child: const Icon(
-                                            Icons.location_pin,
-                                            color: Colors.red,
-                                            size: 40,
-                                          ),
+                                          child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
                                         ),
                                       ],
                                     ),
                                   ],
                                 )
-                              : const Center(
-                                  child: Text(
-                                    'Não foi possível capturar a localização',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ),
+                              : const Center(child: Text('GPS Indisponível', style: TextStyle(color: Colors.red))),
                     ),
-                    if (_lat != null && _lng != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          'Lat: ${_lat!.toStringAsFixed(4)}, Lng: ${_lng!.toStringAsFixed(4)}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 48),
 
                     // Botão Salvar
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 56,
                       child: ElevatedButton(
                         onPressed: (state is AtendimentoSalvando)
                             ? null
@@ -351,11 +377,16 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                                     latitude: _lat,
                                     longitude: _lng,
                                     assinaturaPath: _assinaturaPath,
+                                    queixaPrincipal: _queixaController.text,
+                                    pontosDorTensao: _pontosDorTensao,
+                                    pa: _paController.text,
+                                    fc: _fcController.text,
+                                    temperatura: _tempController.text,
                                   );
                                   context.read<AtendimentoBloc>().add(
                                     AtendimentoSalvarSolicitado(
                                       atendimento: atendimento,
-                                      foto: _fotoCapturada,
+                                      foto: null, // Removido
                                     ),
                                   );
                                 }
@@ -363,14 +394,15 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
                         ),
                         child: (state is AtendimentoSalvando)
                             ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('Salvar Registro', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            : Text('Salvar Registro', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700)),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -381,17 +413,132 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {TextInputType? keyboardType, String? Function(String?)? validator}) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Widget _buildSmallInsightCard(IntelligenceInsight insight) {
+    final color = insight.level == InsightLevel.warning ? Colors.orange : AppColors.secondary;
+    return Container(
+      width: 240,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
-      keyboardType: keyboardType,
-      validator: validator,
+      child: Row(
+        children: [
+          Icon(insight.level == InsightLevel.warning ? Icons.warning_amber_rounded : Icons.lightbulb_outline, color: color, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(insight.title, style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+                Text(insight.message, maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey[800])),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 16),
+      child: Text(
+        title,
+        style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {String? hint, TextInputType? keyboardType}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(label, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+        ),
+        TextFormField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          keyboardType: keyboardType,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextArea(TextEditingController controller, String hint, {String? label, required IconData icon}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(label, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+          ),
+        TextFormField(
+          controller: controller,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(bottom: 40),
+              child: Icon(icon, color: AppColors.primary, size: 20),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectionButton({required VoidCallback onPressed, required IconData icon, required String label, required String value, bool isFilled = false}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isFilled ? AppColors.secondary.withValues(alpha: 0.5) : Colors.transparent, width: 2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isFilled ? AppColors.secondary : AppColors.primary).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: isFilled ? AppColors.secondary : AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[800])),
+                  Text(value, style: GoogleFonts.outfit(fontSize: 12, color: isFilled ? AppColors.secondary : Colors.grey[600], fontWeight: isFilled ? FontWeight.w600 : FontWeight.normal)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+          ],
+        ),
+      ),
     );
   }
 }

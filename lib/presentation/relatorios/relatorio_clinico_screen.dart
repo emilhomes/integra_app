@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/auth_service.dart';
@@ -50,23 +51,53 @@ class _RelatorioClinicoScreenState extends State<RelatorioClinicoScreen> {
 
     if (_isProfissional == false) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Acesso Negado')),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: Text('Acesso Negado', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: AppColors.primary,
+        ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock_outline, size: 64, color: AppColors.error),
-              const SizedBox(height: 16),
-              const Text(
-                'Acesso restrito a Profissionais/Supervisores',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Voltar'),
-              ),
-            ],
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_outline, size: 64, color: AppColors.error),
+                const SizedBox(height: 24),
+                Text(
+                  'Acesso Restrito',
+                  style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primary),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Esta área é reservada para Profissionais e Supervisores.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(color: Colors.grey[600], fontSize: 15),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () => context.pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: Text('Voltar', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -79,7 +110,13 @@ class _RelatorioClinicoScreenState extends State<RelatorioClinicoScreen> {
         AtendimentoRepository(),
       )..add(RelatorioClinicoSolicitado(auth.usuarioAtual?.uid ?? 'anonimo')),
       child: Scaffold(
-        appBar: AppBar(title: const Text('Relatórios Clínicos')),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: Text('Relatórios', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 24)),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: AppColors.primary,
+        ),
         body: BlocBuilder<RelatorioBloc, RelatorioState>(
           builder: (context, state) {
             if (state is RelatorioCarregando) {
@@ -90,13 +127,16 @@ class _RelatorioClinicoScreenState extends State<RelatorioClinicoScreen> {
               final dados = state.dados;
               
               if (dados['semDados'] == true) {
-                return const Center(
+                return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.analytics_outlined, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('Sem dados suficientes para análise', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                      Icon(Icons.analytics_outlined, size: 80, color: Colors.grey[300]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Sem dados suficientes',
+                        style: GoogleFonts.outfit(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 );
@@ -105,132 +145,140 @@ class _RelatorioClinicoScreenState extends State<RelatorioClinicoScreen> {
               final List<double> evolucao = List<double>.from(dados['evolucao']);
 
               return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Filtros
+                    // Filtros Modernos
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: _especialidades.map((e) => Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
+                          padding: const EdgeInsets.only(right: 12.0),
                           child: FilterChip(
-                            label: Text(e),
+                            label: Text(e, style: GoogleFonts.outfit(fontWeight: _especialidadeSelecionada == e ? FontWeight.w700 : FontWeight.w500)),
                             selected: _especialidadeSelecionada == e,
                             onSelected: (selected) {
                               setState(() { _especialidadeSelecionada = e; });
                             },
-                            selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                            selectedColor: AppColors.secondary.withValues(alpha: 0.15),
+                            checkmarkColor: AppColors.secondary,
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: _especialidadeSelecionada == e ? AppColors.secondary : Colors.transparent),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
                         )).toList(),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
-                    // Cards
+                    // Cards de Indicadores
                     Row(
                       children: [
                         _buildIndicatorCard(
                           'Total Atendimentos',
                           '${dados['total']}',
                           'Base Real',
-                          Icons.assessment,
+                          Icons.assessment_rounded,
                           AppColors.primary,
                         ),
                         const SizedBox(width: 16),
                         _buildIndicatorCard(
-                          'Frequência de Dor',
+                          'Casos de Dor',
                           dados['dorRecorrente'],
-                          'Calculado',
-                          Icons.trending_up,
+                          'Tendência',
+                          Icons.trending_up_rounded,
                           AppColors.error,
                         ),
                       ],
                     ),
                     const SizedBox(height: 32),
 
-                    const Text('Volume de Atendimentos no Tempo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 24),
-                    
-                    // Gráfico
-                    if (evolucao.isNotEmpty)
-                    SizedBox(
-                      height: 200,
-                      child: LineChart(
-                        LineChartData(
-                          gridData: const FlGridData(show: false),
-                          titlesData: const FlTitlesData(show: false),
-                          borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey.withValues(alpha: 0.3))),
-                          minX: 0,
-                          maxX: (evolucao.length - 1).toDouble(),
-                          minY: 0,
-                          maxY: (evolucao.length + 2).toDouble(),
-                          lineBarsData: [
-                            LineChartBarData(
-                              spots: evolucao.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-                              isCurved: true,
-                              color: AppColors.primary,
-                              barWidth: 4,
-                              dotData: const FlDotData(show: true),
-                              belowBarData: BarAreaData(show: true, color: AppColors.primary.withValues(alpha: 0.1)),
+                    // Seção de Gráfico
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Volume de Atendimentos',
+                            style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
+                          ),
+                          const SizedBox(height: 24),
+                          if (evolucao.isNotEmpty)
+                          SizedBox(
+                            height: 200,
+                            child: LineChart(
+                              LineChartData(
+                                gridData: const FlGridData(show: false),
+                                titlesData: const FlTitlesData(show: false),
+                                borderData: FlBorderData(show: false),
+                                lineBarsData: [
+                                  LineChartBarData(
+                                    spots: evolucao.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+                                    isCurved: true,
+                                    color: AppColors.primary,
+                                    barWidth: 4,
+                                    dotData: const FlDotData(show: true),
+                                    belowBarData: BarAreaData(show: true, color: AppColors.primary.withValues(alpha: 0.1)),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 32),
 
-                    // Botão Mapa
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: OutlinedButton.icon(
-                        onPressed: () => context.push('/relatorios/mapa'),
-                        icon: const Icon(Icons.map),
-                        label: const Text('Ver Mapa de Atendimentos'),
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
+                    // Ações de Relatório
+                    _buildActionButton(
+                      onPressed: () => context.push('/relatorios/mapa'),
+                      icon: Icons.map_outlined,
+                      label: 'Ver Mapa Geográfico',
+                      color: Colors.white,
+                      textColor: AppColors.primary,
+                      isOutlined: true,
                     ),
                     const SizedBox(height: 16),
+                    _buildActionButton(
+                      onPressed: () async {
+                        final atendimentos = (dados['atendimentos'] as List<AtendimentoModel>).take(5).map((a) => {
+                          'data': DateFormat('dd/MM').format(a.data),
+                          'terapia': a.terapias.join(', '),
+                          'obs': a.observacoes.length > 20 ? '${a.observacoes.substring(0, 20)}...' : a.observacoes,
+                        }).toList();
 
-                    // Botão PDF
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          final atendimentos = (dados['atendimentos'] as List<AtendimentoModel>).take(5).map((a) => {
-                            'data': DateFormat('dd/MM').format(a.data),
-                            'terapia': a.terapias.join(', '),
-                            'obs': a.observacoes.length > 20 ? '${a.observacoes.substring(0, 20)}...' : a.observacoes,
-                          }).toList();
-
-                          final path = await PdfService().gerarRelatorioClinico(
-                            pacienteNome: 'Relatório Geral do Profissional',
-                            dorRecorrente: dados['dorRecorrente'],
-                            bemEstar: '${dados['total']} atendimentos',
-                            atendimentos: atendimentos,
+                        final path = await PdfService().gerarRelatorioClinico(
+                          pacienteNome: 'Relatório Geral do Profissional',
+                          dorRecorrente: dados['dorRecorrente'],
+                          bemEstar: '${dados['total']} atendimentos',
+                          atendimentos: atendimentos,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('PDF gerado com sucesso!', style: GoogleFonts.outfit()),
+                              backgroundColor: AppColors.secondary,
+                            ),
                           );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('PDF gerado: $path'), backgroundColor: AppColors.secondary),
-                            );
-                            // Abrir o arquivo PDF automaticamente
-                            await OpenFilex.open(path);
-                          }
-                        },
-                        icon: const Icon(Icons.picture_as_pdf),
-                        label: const Text('Gerar Relatório PDF'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
+                          await OpenFilex.open(path);
+                        }
+                      },
+                      icon: Icons.picture_as_pdf_rounded,
+                      label: 'Exportar Relatório PDF',
+                      color: AppColors.primary,
+                      textColor: Colors.white,
                     ),
+                    const SizedBox(height: 40),
                   ],
                 ),
               );
@@ -244,23 +292,59 @@ class _RelatorioClinicoScreenState extends State<RelatorioClinicoScreen> {
 
   Widget _buildIndicatorCard(String title, String value, String variation, IconData icon, Color color) {
     return Expanded(
-      child: Card(
-        elevation: 0,
-        color: color.withValues(alpha: 0.05),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: color.withValues(alpha: 0.2))),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(height: 8),
-              Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
-              Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 4),
-              Text(variation, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-            ],
-          ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 16),
+            Text(value, style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: color)),
+            const SizedBox(height: 4),
+            Text(title, style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+              child: Text(variation, style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color textColor,
+    bool isOutlined = false,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, color: textColor, size: 22),
+        label: Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 16, color: textColor)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          elevation: 0,
+          side: isOutlined ? const BorderSide(color: AppColors.primary, width: 2) : null,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
     );

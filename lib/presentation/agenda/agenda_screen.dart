@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
 import '../../data/models/agendamento_model.dart';
 import '../../data/repositories/agendamento_repository.dart';
-
 import '../../core/services/notificacao_service.dart';
 
 class AgendaScreen extends StatefulWidget {
@@ -53,14 +53,14 @@ class _AgendaScreenState extends State<AgendaScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Excluir Agendamento'),
-        content: Text('Tem certeza que deseja excluir o agendamento de ${agendamento.pacienteNome}? Esta ação não pode ser desfeita.'),
+        title: Text('Excluir Agendamento', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        content: Text('Tem certeza que deseja excluir o agendamento de ${agendamento.pacienteNome}?', style: GoogleFonts.outfit()),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: GoogleFonts.outfit(color: Colors.grey))),
           TextButton(
             onPressed: () => Navigator.pop(context, true), 
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Excluir'),
+            child: Text('Excluir', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -73,14 +73,14 @@ class _AgendaScreenState extends State<AgendaScreen> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Agendamento excluído com sucesso'), backgroundColor: Colors.green),
+            const SnackBar(content: Text('Agendamento excluído com sucesso'), backgroundColor: AppColors.secondary),
           );
           _carregarAgendamentos(_selectedDay!);
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao excluir: $e'), backgroundColor: Colors.red),
+            SnackBar(content: Text('Erro ao excluir: $e'), backgroundColor: AppColors.error),
           );
         }
       }
@@ -90,73 +90,122 @@ class _AgendaScreenState extends State<AgendaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Minha Agenda'),
+        title: Text('Minha Agenda', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: AppColors.primary,
       ),
       body: Column(
         children: [
-          TableCalendar(
-            firstDay: DateTime.utc(2020, 1, 1),
-            lastDay: DateTime.utc(2030, 12, 31),
-            focusedDay: _focusedDay,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selectedDay, focusedDay) {
-              if (!isSameDay(_selectedDay, selectedDay)) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-                _carregarAgendamentos(selectedDay);
-              }
-            },
-            calendarStyle: const CalendarStyle(
-              selectedDecoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              todayDecoration: BoxDecoration(
-                color: AppColors.secondary,
-                shape: BoxShape.circle,
-              ),
-              markerDecoration: BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-              ),
+          Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+              ],
             ),
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
+            child: TableCalendar(
+              firstDay: DateTime.utc(2020, 1, 1),
+              lastDay: DateTime.utc(2030, 12, 31),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              onDaySelected: (selectedDay, focusedDay) {
+                if (!isSameDay(_selectedDay, selectedDay)) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                  });
+                  _carregarAgendamentos(selectedDay);
+                }
+              },
+              calendarStyle: CalendarStyle(
+                selectedDecoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                todayDecoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), shape: BoxShape.circle),
+                todayTextStyle: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                markerDecoration: const BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
+                defaultTextStyle: GoogleFonts.outfit(),
+                weekendTextStyle: GoogleFonts.outfit(color: Colors.redAccent),
+              ),
+              headerStyle: HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+                titleTextStyle: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.primary),
+                leftChevronIcon: const Icon(Icons.chevron_left_rounded, color: AppColors.primary),
+                rightChevronIcon: const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+              ),
+              daysOfWeekStyle: DaysOfWeekStyle(
+                weekdayStyle: GoogleFonts.outfit(color: Colors.grey[600], fontWeight: FontWeight.w600),
+                weekendStyle: GoogleFonts.outfit(color: Colors.redAccent, fontWeight: FontWeight.w600),
+              ),
             ),
           ),
-          const Divider(),
+          
           Expanded(
-            child: _carregando
-                ? const Center(child: CircularProgressIndicator())
-                : _agendamentosDoDia.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Nenhum agendamento para ${DateFormat('dd/MM/yyyy').format(_selectedDay!)}',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _agendamentosDoDia.length,
-                        itemBuilder: (context, index) {
-                          final agendamento = _agendamentosDoDia[index];
-                          return _buildAgendamentoCard(agendamento);
-                        },
-                      ),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      _selectedDay == null ? 'Próximos compromissos' : 'Agenda de ${DateFormat('dd/MM').format(_selectedDay!)}',
+                      style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primary),
+                    ),
+                  ),
+                  Expanded(
+                    child: _carregando
+                        ? const Center(child: CircularProgressIndicator())
+                        : _agendamentosDoDia.isEmpty
+                            ? _buildEmptyState()
+                            : ListView.builder(
+                                padding: const EdgeInsets.only(bottom: 100),
+                                itemCount: _agendamentosDoDia.length,
+                                itemBuilder: (context, index) {
+                                  final agendamento = _agendamentosDoDia[index];
+                                  return _buildAgendamentoCard(agendamento);
+                                },
+                              ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final result = await context.push('/agenda/novo');
           if (result == true) _carregarAgendamentos(_selectedDay!);
         },
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: Text('Agendar', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.event_note_rounded, size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(
+            'Nenhum agendamento',
+            style: GoogleFonts.outfit(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w600),
+          ),
+          Text(
+            'para este dia.',
+            style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[400]),
+          ),
+        ],
       ),
     );
   }
@@ -164,127 +213,84 @@ class _AgendaScreenState extends State<AgendaScreen> {
   Widget _buildAgendamentoCard(AgendamentoModel agendamento) {
     Color statusColor;
     switch (agendamento.status) {
-      case AgendamentoStatus.agendado:
-        statusColor = Colors.blue;
-        break;
-      case AgendamentoStatus.realizado:
-        statusColor = Colors.green;
-        break;
-      case AgendamentoStatus.cancelado:
-        statusColor = Colors.red;
-        break;
+      case AgendamentoStatus.agendado: statusColor = AppColors.primary; break;
+      case AgendamentoStatus.realizado: statusColor = Colors.green; break;
+      case AgendamentoStatus.cancelado: statusColor = Colors.red; break;
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            leading: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
                     DateFormat('HH:mm').format(agendamento.dataHora),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                      fontSize: 16,
-                    ),
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w800, color: statusColor, fontSize: 16),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        agendamento.pacienteNome,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      Text(
-                        agendamento.tipoTerapia,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: Colors.grey),
-                      onSelected: (value) async {
-                        if (value == 'editar') {
-                          final result = await context.push('/agenda/editar/${agendamento.id}');
-                          if (result == true) _carregarAgendamentos(_selectedDay!);
-                        } else if (value == 'excluir') {
-                          _excluirAgendamento(agendamento);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'editar',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 20),
-                              SizedBox(width: 8),
-                              Text('Editar'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'excluir',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 20, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('Excluir', style: TextStyle(color: Colors.red)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: statusColor),
-                      ),
-                      child: Text(
-                        agendamento.status.name.toUpperCase(),
-                        style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
+              ),
+            ),
+            title: Text(
+              agendamento.pacienteNome,
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 17, color: AppColors.primary),
+            ),
+            subtitle: Text(
+              agendamento.tipoTerapia,
+              style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
+            ),
+            trailing: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              onSelected: (value) async {
+                if (value == 'editar') {
+                  final result = await context.push('/agenda/editar/${agendamento.id}');
+                  if (result == true) _carregarAgendamentos(_selectedDay!);
+                } else if (value == 'excluir') {
+                  _excluirAgendamento(agendamento);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(value: 'editar', child: Row(children: [const Icon(Icons.edit_outlined, size: 20), const SizedBox(width: 8), Text('Editar', style: GoogleFonts.outfit())])),
+                PopupMenuItem(value: 'excluir', child: Row(children: [const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red), const SizedBox(width: 8), Text('Excluir', style: GoogleFonts.outfit(color: Colors.red))])),
               ],
             ),
-            if (agendamento.status == AgendamentoStatus.agendado) ...[
-              const SizedBox(height: 12),
-              SizedBox(
+          ),
+          if (agendamento.status == AgendamentoStatus.agendado)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                height: 48,
+                child: ElevatedButton(
                   onPressed: () => context.push('/atendimento/novo/${agendamento.pacienteId}'),
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Iniciar Atendimento'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: Text('Iniciar Atendimento', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
                 ),
               ),
-            ],
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
