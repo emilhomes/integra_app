@@ -29,28 +29,37 @@ class ClinicalIntelligenceService {
     if (y < 0.65) return 'Região Lombar/Pélvica';
     return 'Membros Inferiores (Pernas/Pés)';
   }
-/// Analisa palavras-chave nas queixas principais
+  /// Extrai apenas os termos clínicos de um texto
+  List<String> extractClinicalTerms(String text) {
+    final List<String> found = [];
+    final textLower = text.toLowerCase();
+
+    final clinicalTerms = [
+      'Febre', 'Dor de cabeça', 'Dor na lombar', 'Dor articular', 'Dor muscular',
+      'Insônia', 'Ansiedade', 'Estresse', 'Tensão muscular', 'Gastrite',
+      'Rinite', 'Sinusite', 'Enxaqueca', 'Cansaço', 'Depressão', 'Constipação',
+      'Diarreia', 'Cólica', 'Náusea', 'Vômito', 'Tontura', 'Falta de ar', 'Palpitação'
+    ];
+
+    for (var term in clinicalTerms) {
+      final regex = RegExp('\\b${RegExp.escape(term.toLowerCase())}\\b');
+      if (regex.hasMatch(textLower)) {
+        found.add(term);
+      }
+    }
+    return found;
+  }
+
+  /// Analisa termos clínicos e doenças nas queixas principais
 Map<String, int> analyzeKeywords(List<AtendimentoModel> atendimentos) {
   final Map<String, int> counts = {};
-  final stopWords = {
-    'a', 'o', 'e', 'de', 'do', 'da', 'em', 'um', 'para', 'com', 'no', 'na', 'que', 'tem', 'esta', 'estou', 'muito', 'muita', 'está', 'pelo', 'pela', 'mais',
-    'cliente', 'informa', 'sentindo', 'paciente', 'apresenta', 'relata', 'refere', 'disse', 'disse que', 'com muita', 'com muito', 'há', 'dia', 'dias'
-  };
-
+  
   for (var a in atendimentos) {
     if (a.queixaPrincipal == null) continue;
+    final terms = extractClinicalTerms(a.queixaPrincipal!);
 
-    final words = a.queixaPrincipal!
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^\w\sà-úÀ-Ú]'), '')
-        .split(RegExp(r'\s+'))
-        .where((w) => w.length > 2 && !stopWords.contains(w));
-
-    for (var w in words) {
-      // Normalização simples de acentos para contagem (ex: insonia -> insônia)
-      // Por agora, vamos apenas limpar para agrupar e depois usar o termo original mais comum
-      final normalized = _normalizeWord(w);
-      counts[normalized] = (counts[normalized] ?? 0) + 1;
+    for (var term in terms) {
+      counts[term] = (counts[term] ?? 0) + 1;
     }
   }
 
@@ -60,21 +69,9 @@ Map<String, int> analyzeKeywords(List<AtendimentoModel> atendimentos) {
   return Map.fromEntries(sorted.take(10));
 }
 
+// O método _normalizeWord não é mais necessário com a whitelist, mas vamos manter se houver dependência
 String _normalizeWord(String word) {
-  // Remove acentos apenas para comparação/agrupamento
-  const withAccent = 'àáâãäèéêëìíîïòóôõöùúûüç';
-  const withoutAccent = 'aaaaaeeeeiiiiooooouuuuc';
-  String normalized = word;
-  for (int i = 0; i < withAccent.length; i++) {
-    normalized = normalized.replaceAll(withAccent[i], withoutAccent[i]);
-  }
-  // Mapeamento manual de termos comuns para garantir a versão correta
-  if (normalized == 'insonia') return 'insônia';
-  if (normalized == 'cabeca') return 'cabeça';
-  if (normalized == 'tensao') return 'tensão';
-  if (normalized == 'coluna') return 'coluna';
-  if (normalized == 'lombar') return 'lombar';
-  return word; // Retorna original se não for caso especial, mas agrupado por insonia/insônia na lógica se necessário
+  return word; 
 }
 
   /// Detecta pontos recorrentes (dor ou tensão)

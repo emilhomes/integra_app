@@ -18,10 +18,12 @@ class NotificacaoService {
     tz.setLocalLocation(brasilLocation);
     debugPrint('Fuso horário configurado: America/Sao_Paulo (UTC-3)');
 
-    // Solicita permissão explícita no Android 13+
-    await Permission.notification.request();
+    // Solicita permissão explícita apenas em plataformas móveis (não web)
+    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+      await Permission.notification.request();
+    }
 
-    if (Platform.isAndroid) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       final androidPlugin = _notifications
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
@@ -47,28 +49,17 @@ class NotificacaoService {
   }
 
   static Future<void> agendarNotificacao(AgendamentoModel agendamento) async {
-    final agoraSistema = DateTime.now();
-    
-    // Calcula quanto tempo falta entre AGORA e o horário escolhido
-    final diferenca = agendamento.dataHora.difference(agoraSistema);
-    
-    // Subtrai 10 segundos para o teste imediato
-    final tempoParaDisparar = diferenca - const Duration(seconds: 10);
+    final agora = tz.TZDateTime.now(tz.local);
+    final dataDisparo = tz.TZDateTime.from(agendamento.dataHora, tz.local);
     
     debugPrint('--- [INFO AGENDAMENTO] ---');
-    debugPrint('Relógio do Celular: $agoraSistema');
-    debugPrint('Horário Escolhido: ${agendamento.dataHora}');
+    debugPrint('Agora (TZ): $agora');
+    debugPrint('Disparo (TZ): $dataDisparo');
     
-    if (tempoParaDisparar.isNegative) {
-      debugPrint('AVISO: O horário já passou no relógio do celular. Notificação não agendada.');
+    if (dataDisparo.isBefore(agora)) {
+      debugPrint('AVISO: O horário já passou. Notificação não agendada.');
       return;
     }
-
-    // Criamos o ponto de disparo baseado no AGORA do timezone local configurado (America/Sao_Paulo)
-    final dataDisparo = tz.TZDateTime.now(tz.local).add(tempoParaDisparar);
-
-    debugPrint('Disparará em: ${tempoParaDisparar.inMinutes}m e ${tempoParaDisparar.inSeconds % 60}s');
-    debugPrint('Instante exato (TimeZone Brasil): $dataDisparo');
 
     await _notifications.zonedSchedule(
       agendamento.id.hashCode,
@@ -77,7 +68,7 @@ class NotificacaoService {
       dataDisparo,
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'integra_agendamentos_v4',
+          'integra_agendamentos',
           'Agendamentos ÍNTEGRA',
           channelDescription: 'Lembretes críticos de atendimentos',
           importance: Importance.max,
@@ -87,13 +78,18 @@ class NotificacaoService {
           category: AndroidNotificationCategory.alarm,
           icon: '@mipmap/ic_launcher',
         ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
     
-    debugPrint('SUCESSO: Programado no Android.');
+    debugPrint('SUCESSO: Programado para $dataDisparo');
     debugPrint('--------------------------');
   }
 
@@ -107,23 +103,30 @@ class NotificacaoService {
       'integra_confirmacoes',
       'Confirmações ÍNTEGRA',
       channelDescription: 'Notifica quando um agendamento é realizado',
-      importance: Importance.max,
-      priority: Priority.max,
+      importance: Importance.high,
+      priority: Priority.high,
       showWhen: true,
       icon: '@mipmap/ic_launcher',
     );
 
     const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
+        NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
 
     await _notifications.show(
-      agendamento.id.hashCode,
+      agendamento.id.hashCode + 1, // ID diferente para não sobrepor o lembrete
       'Agendamento Confirmado!',
       'Paciente: ${agendamento.pacienteNome} \nData: ${DateFormat('dd/MM HH:mm').format(agendamento.dataHora)}',
       platformChannelSpecifics,
     );
     
-    debugPrint('Notificação de confirmação disparada para: ${agendamento.id}');
+    debugPrint('Notificação de confirmação disparada.');
   }
 
   static Future<void> testarNotificacao() async {

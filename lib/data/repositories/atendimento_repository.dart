@@ -68,4 +68,21 @@ class AtendimentoRepository {
       throw Exception('Erro ao buscar atendimentos do profissional: $e');
     }
   }
+
+  Future<List<AtendimentoModel>> buscarPorPeriodo(String idProfissional, DateTime inicio) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_collection)
+          .where('profissionalId', isEqualTo: idProfissional)
+          .where('data', isGreaterThanOrEqualTo: inicio)
+          .orderBy('data', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => AtendimentoModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      throw Exception('Erro ao buscar atendimentos por período: $e');
+    }
+  }
 }

@@ -275,6 +275,32 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
                     // Avaliação Inicial
                     _buildSectionTitle('Avaliação Inicial'),
                     _buildTextArea(_queixaController, 'O que o paciente está sentindo hoje?', label: 'Queixa Principal', icon: Icons.chat_bubble_outline),
+                    const SizedBox(height: 8),
+                    // Atalhos para queixas comuns (Doenças)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          'Febre', 'Dor de cabeça', 'Dor na lombar', 'Ansiedade', 'Insônia', 'Estresse', 'Tensão muscular'
+                        ].map((queixa) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ActionChip(
+                            label: Text(queixa, style: GoogleFonts.outfit(fontSize: 12)),
+                            onPressed: () {
+                              if (_queixaController.text.isEmpty) {
+                                _queixaController.text = queixa;
+                              } else {
+                                if (!_queixaController.text.contains(queixa)) {
+                                  _queixaController.text += ', $queixa';
+                                }
+                              }
+                            },
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
+                          ),
+                        )).toList(),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     _buildSelectionButton(
                       onPressed: _abrirMapaCorporal,

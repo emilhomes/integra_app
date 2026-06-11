@@ -1,5 +1,7 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-// Importações das telas (placeholders por enquanto)
+
 import '../data/models/atendimento_model.dart';
 import '../presentation/auth/login_screen.dart';
 import '../presentation/dashboard/dashboard_screen.dart';
@@ -21,6 +23,23 @@ import '../presentation/relatorios/mapa_atendimentos_screen.dart';
 import '../presentation/assistente/assistente_screen.dart';
 import '../presentation/shared/scaffold_with_navbar.dart';
 import '../core/services/auth_service.dart';
+
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen(
+          (dynamic _) => notifyListeners(),
+        );
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
 
 class AppRoutes {
   static const String login = '/login';
@@ -44,7 +63,27 @@ class AppRoutes {
 
   static final router = GoRouter(
     initialLocation: login,
+    refreshListenable: GoRouterRefreshStream(AuthService().userStateStream),
+    redirect: (context, state) {
+      final auth = AuthService();
+      final user = auth.usuarioAtual;
+      final isLoggingIn = state.matchedLocation == login;
+
+      if (user == null) {
+        return isLoggingIn ? null : login;
+      }
+
+      if (isLoggingIn) {
+        return dashboard;
+      }
+
+      return null;
+    },
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (_, __) => login,
+      ),
       GoRoute(
         path: login,
         name: 'login',

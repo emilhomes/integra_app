@@ -4,44 +4,50 @@ import 'package:flutter/foundation.dart';
 import '../constants/api_keys.dart';
 
 class AssistenteService {
-  static const String _model = 'gemini-2.0-flash';
+  static const String _model = 'gemini-2.5-flash';
   static const String _baseUrl = 
     'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
   
   final List<Map<String, dynamic>> _historico = [];
   
   static const String _systemPrompt = '''
-    Você é um assistente clínico especializado em 
-    Práticas Integrativas e Complementares em Saúde (PICS).
-    Você auxilia profissionais e estagiários do NUPICS-UERN.
-    Responda sempre em português brasileiro.
-    Seja objetivo, claro e baseado em evidências.
-    Áreas de conhecimento: acupuntura auricular, aromaterapia, 
-    massoterapia, reiki, ventosaterapia e outras PICS.
-    Importante: nunca substitua consulta médica profissional.
-    Mantenha respostas concisas (máximo 3 parágrafos).
+    INSTRUÇÃO DE SISTEMA: Você é um assistente clínico especializado em 
+    Práticas Integrativas e Complementares em Saúde (PICS) do NUPICS-UERN.
+    Responda sempre em português brasileiro de forma clara e baseada em evidências.
+    Nunca substitua consulta médica. Mantenha respostas concisas.
   ''';
 
   Future<String> enviarMensagem(String mensagem) async {
+    // Se o histórico estiver vazio, adicionamos o prompt de sistema como a primeira mensagem
+    if (_historico.isEmpty) {
+      _historico.add({
+        'role': 'user',
+        'parts': [{'text': _systemPrompt}]
+      });
+      _historico.add({
+        'role': 'model',
+        'parts': [{'text': 'Entendido. Sou o assistente do NUPICS-UERN. Como posso ajudar?'}]
+      });
+    }
+
     _historico.add({
       'role': 'user',
       'parts': [{'text': mensagem}]
     });
 
     final body = {
-      'system_instruction': {
-        'parts': [{'text': _systemPrompt}]
-      },
       'contents': _historico,
       'generationConfig': {
-        'maxOutputTokens': 1024,
+        'maxOutputTokens': 2048,
         'temperature': 0.7,
       }
     };
 
     try {
+      final url = '$_baseUrl?key=$geminiApiKey';
+      
       final response = await http.post(
-        Uri.parse('$_baseUrl?key=$geminiApiKey'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
@@ -58,12 +64,19 @@ class AssistenteService {
         
         return resposta;
       } else {
-        debugPrint('Erro API: ${response.body}');
-        return 'Erro ao processar sua pergunta. Tente novamente.';
+        debugPrint('!!! [ASSISTENTE] Erro API (Status ${response.statusCode}) !!!');
+        debugPrint('Resposta: ${response.body}');
+        
+        try {
+          final errorData = jsonDecode(response.body);
+          return 'Erro na API (${response.statusCode}): ${errorData['error']['message']}';
+        } catch (_) {
+          return 'Erro na API (${response.statusCode}). Verifique se sua chave é válida.';
+        }
       }
     } catch (e) {
-      debugPrint('Erro: $e');
-      return 'Erro de conexão. Verifique sua internet.';
+      debugPrint('!!! [ASSISTENTE] Erro de Conexão: $e !!!');
+      return 'Erro de conexão: Verifique sua internet.';
     }
   }
 

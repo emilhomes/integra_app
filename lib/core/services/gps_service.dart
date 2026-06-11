@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class GpsService {
@@ -32,7 +33,7 @@ class GpsService {
     try {
       LocationSettings locationSettings;
 
-      if (Platform.isAndroid) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
         locationSettings = AndroidSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,

@@ -22,9 +22,7 @@ class IntegraApp extends StatelessWidget {
           onPrimary: AppColors.onPrimary,
           onSecondary: AppColors.onSecondary,
         ),
-        textTheme: GoogleFonts.nunitoTextTheme(
-          Theme.of(context).textTheme,
-        ),
+        textTheme: GoogleFonts.nunitoTextTheme(),
         scaffoldBackgroundColor: AppColors.background,
         appBarTheme: const AppBarTheme(
           backgroundColor: AppColors.primary,
