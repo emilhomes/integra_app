@@ -173,10 +173,19 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
     );
 
     try {
+      debugPrint('Salvando agendamento para: ${novoAgendamento.dataHora}');
       await _agendamentoRepository.salvar(novoAgendamento);
       
-      // Agenda/Atualiza notificação local
-      await NotificacaoService.agendarNotificacao(novoAgendamento);
+      // Agenda notificação futura E dispara uma confirmação imediata
+      try {
+        // Notificação de confirmação imediata (para o trabalho)
+        await NotificacaoService.notificarConfirmacao(novoAgendamento);
+        
+        // Mantém o agendamento futuro (caso o relógio esteja sincronizado)
+        await NotificacaoService.agendarNotificacao(novoAgendamento);
+      } catch (e) {
+        debugPrint('Erro ao processar notificações: $e');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -259,7 +268,9 @@ class _NovoAgendamentoScreenState extends State<NovoAgendamentoScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => _selecionarHora(context),
                     icon: const Icon(Icons.access_time),
-                    label: Text(_horaSelecionada.format(context)),
+                    label: Text(
+                      '${_horaSelecionada.hour.toString().padLeft(2, '0')}:${_horaSelecionada.minute.toString().padLeft(2, '0')}',
+                    ),
                   ),
                 ),
               ],

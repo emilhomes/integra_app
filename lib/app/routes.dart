@@ -18,6 +18,7 @@ import '../presentation/agenda/agenda_screen.dart';
 import '../presentation/agenda/novo_agendamento_screen.dart';
 import '../presentation/atendimento/assinatura_screen.dart';
 import '../presentation/relatorios/mapa_atendimentos_screen.dart';
+import '../presentation/assistente/assistente_screen.dart';
 import '../presentation/shared/scaffold_with_navbar.dart';
 import '../core/services/auth_service.dart';
 
@@ -31,6 +32,7 @@ class AppRoutes {
   static const String atendimentoNovo = '/atendimento/novo/:pacienteId';
   static const String atendimentoAssinatura = '/atendimento/assinatura/:id';
   static const String agenda = '/agenda';
+  static const String assistente = '/assistente';
   static const String agendaNovo = '/agenda/novo';
   static const String agendaEditar = '/agenda/editar/:agendamentoId';
   static const String relatoriosMapa = '/relatorios/mapa';
@@ -71,6 +73,11 @@ class AppRoutes {
             builder: (context, state) => const AgendaScreen(),
           ),
           GoRoute(
+            path: assistente,
+            name: 'assistente',
+            builder: (context, state) => const AssistenteScreen(),
+          ),
+          GoRoute(
             path: relatoriosClinico,
             name: 'relatoriosClinico',
             builder: (context, state) => const RelatorioClinicoScreen(),
@@ -108,9 +115,14 @@ class AppRoutes {
       GoRoute(
         path: atendimentoNovo,
         name: 'atendimentoNovo',
-        builder: (context, state) => RegistroAtendimentoScreen(
-          pacienteId: state.pathParameters['pacienteId']!,
-        ),
+        builder: (context, state) {
+          final pacienteId = state.pathParameters['pacienteId']!;
+          final agendamentoId = state.uri.queryParameters['agendamentoId'];
+          return RegistroAtendimentoScreen(
+            pacienteId: pacienteId,
+            agendamentoId: agendamentoId,
+          );
+        },
       ),
       GoRoute(
         path: anamneseClinica,

@@ -16,18 +16,22 @@ class AgendamentoRepository {
     }
   }
 
-  Future<List<AgendamentoModel>> buscarPorDia(String profissionalId, DateTime dia) async {
+  Future<List<AgendamentoModel>> buscarPorDia(String profissionalId, DateTime dia, {bool incluirRealizados = false}) async {
     try {
       final inicioDia = DateTime(dia.year, dia.month, dia.day);
       final fimDia = DateTime(dia.year, dia.month, dia.day, 23, 59, 59);
 
-      final querySnapshot = await _firestore
+      var query = _firestore
           .collection(_collection)
           .where('profissionalId', isEqualTo: profissionalId)
           .where('dataHora', isGreaterThanOrEqualTo: inicioDia)
-          .where('dataHora', isLessThanOrEqualTo: fimDia)
-          .orderBy('dataHora')
-          .get();
+          .where('dataHora', isLessThanOrEqualTo: fimDia);
+      
+      if (!incluirRealizados) {
+        query = query.where('status', isNotEqualTo: 'realizado');
+      }
+
+      final querySnapshot = await query.orderBy('dataHora').get();
 
       return querySnapshot.docs
           .map((doc) => AgendamentoModel.fromMap(doc.data()))

@@ -36,7 +36,8 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     if (location.startsWith('/dashboard')) return 0;
     if (location.startsWith('/pacientes')) return 1;
     if (location.startsWith('/agenda')) return 2;
-    if (location.startsWith('/relatorios/clinico')) return 3;
+    if (location.startsWith('/assistente')) return 3;
+    if (location.startsWith('/relatorios/clinico')) return 4;
     return 0;
   }
 
@@ -52,6 +53,9 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
         context.go('/agenda');
         break;
       case 3:
+        context.go('/assistente');
+        break;
+      case 4:
         context.go('/relatorios/clinico');
         break;
     }
@@ -94,6 +98,10 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
             const BottomNavigationBarItem(
               icon: Icon(Icons.calendar_month_rounded),
               label: 'Agenda',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.psychology_rounded),
+              label: 'Assistente',
             ),
             if (_isProfissional)
               const BottomNavigationBarItem(

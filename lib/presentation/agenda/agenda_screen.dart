@@ -22,6 +22,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
   DateTime? _selectedDay;
   List<AgendamentoModel> _agendamentosDoDia = [];
   bool _carregando = false;
+  bool _verRealizados = false;
 
   @override
   void initState() {
@@ -36,7 +37,11 @@ class _AgendaScreenState extends State<AgendaScreen> {
 
     setState(() => _carregando = true);
     try {
-      final agendamentos = await _agendamentoRepository.buscarPorDia(usuario.uid, dia);
+      final agendamentos = await _agendamentoRepository.buscarPorDia(
+        usuario.uid, 
+        dia,
+        incluirRealizados: _verRealizados,
+      );
       if (mounted) {
         setState(() {
           _agendamentosDoDia = agendamentos;
@@ -151,12 +156,29 @@ class _AgendaScreenState extends State<AgendaScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      _selectedDay == null ? 'Próximos compromissos' : 'Agenda de ${DateFormat('dd/MM').format(_selectedDay!)}',
-                      style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primary),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _selectedDay == null ? 'Próximos compromissos' : 'Agenda de ${DateFormat('dd/MM').format(_selectedDay!)}',
+                        style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primary),
+                      ),
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() => _verRealizados = !_verRealizados);
+                          _carregarAgendamentos(_selectedDay!);
+                        },
+                        icon: Icon(
+                          _verRealizados ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                          size: 18,
+                          color: AppColors.secondary,
+                        ),
+                        label: Text(
+                          _verRealizados ? 'Esconder realizados' : 'Ver realizados',
+                          style: GoogleFonts.outfit(fontSize: 12, color: AppColors.secondary, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
                   ),
                   Expanded(
                     child: _carregando
@@ -211,7 +233,9 @@ class _AgendaScreenState extends State<AgendaScreen> {
   }
 
   Widget _buildAgendamentoCard(AgendamentoModel agendamento) {
+    final isRealizado = agendamento.status == AgendamentoStatus.realizado;
     Color statusColor;
+    
     switch (agendamento.status) {
       case AgendamentoStatus.agendado: statusColor = AppColors.primary; break;
       case AgendamentoStatus.realizado: statusColor = Colors.green; break;
@@ -234,7 +258,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
             leading: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.08),
+                color: (isRealizado ? Colors.grey : statusColor).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -242,20 +266,53 @@ class _AgendaScreenState extends State<AgendaScreen> {
                 children: [
                   Text(
                     DateFormat('HH:mm').format(agendamento.dataHora),
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.w800, color: statusColor, fontSize: 16),
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w800, 
+                      color: isRealizado ? Colors.grey : statusColor, 
+                      fontSize: 16
+                    ),
                   ),
                 ],
               ),
             ),
-            title: Text(
-              agendamento.pacienteNome,
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 17, color: AppColors.primary),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    agendamento.pacienteNome,
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700, 
+                      fontSize: 17, 
+                      color: isRealizado ? Colors.grey : AppColors.primary
+                    ),
+                  ),
+                ),
+                if (isRealizado)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Concluído',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10, 
+                        fontWeight: FontWeight.bold, 
+                        color: Colors.green
+                      ),
+                    ),
+                  ),
+              ],
             ),
             subtitle: Text(
               agendamento.tipoTerapia,
-              style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
+              style: GoogleFonts.outfit(
+                fontSize: 13, 
+                color: isRealizado ? Colors.grey[400] : Colors.grey[600]
+              ),
             ),
-            trailing: PopupMenuButton<String>(
+            trailing: isRealizado ? null : PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onSelected: (value) async {
@@ -279,7 +336,9 @@ class _AgendaScreenState extends State<AgendaScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () => context.push('/atendimento/novo/${agendamento.pacienteId}'),
+                  onPressed: () => context.push(
+                    '/atendimento/novo/${agendamento.pacienteId}?agendamentoId=${agendamento.id}',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
                     foregroundColor: Colors.white,

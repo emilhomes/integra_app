@@ -28,7 +28,7 @@ class GpsService {
       return null;
     }
 
-    // Retorna a posição atual com alta precisão
+    // Retorna a posição atual com alta precisão e timeout para evitar travamentos
     try {
       LocationSettings locationSettings;
 
@@ -36,19 +36,28 @@ class GpsService {
         locationSettings = AndroidSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,
+          timeLimit: const Duration(seconds: 5), // Limite de 5 segundos
         );
       } else {
         locationSettings = const LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,
+          timeLimit: const Duration(seconds: 5),
         );
       }
 
-      return await Geolocator.getCurrentPosition(
-        locationSettings: locationSettings,
-      );
+      // Tenta pegar a posição atual com timeout
+      try {
+        return await Geolocator.getCurrentPosition(
+          locationSettings: locationSettings,
+        ).timeout(const Duration(seconds: 5));
+      } catch (_) {
+        // Se der timeout ou erro, tenta a última posição conhecida
+        return await Geolocator.getLastKnownPosition();
+      }
     } catch (e) {
-      return null;
+      // Em caso de erro, tenta ao menos a última conhecida
+      return await Geolocator.getLastKnownPosition();
     }
   }
 }

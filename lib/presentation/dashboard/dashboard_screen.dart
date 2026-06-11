@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/notificacao_service.dart';
 
 import '../../data/models/usuario_model.dart';
 import '../../data/models/agendamento_model.dart';
@@ -258,6 +259,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 24),
 
                   _buildQuickAccessRow(),
+
+                  const SizedBox(height: 16),
+                  // TODO: remover antes da entrega
+                  ElevatedButton.icon(
+                    onPressed: () => NotificacaoService.testarNotificacao(),
+                    icon: const Icon(Icons.notification_important_rounded),
+                    label: const Text('Testar Notificação'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
+                      foregroundColor: AppColors.secondary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
 
                   const SizedBox(height: 32),
                   Row(

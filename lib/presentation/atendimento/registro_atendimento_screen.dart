@@ -12,6 +12,7 @@ import '../../core/services/storage_service.dart';
 import '../../core/utils/validators.dart';
 import '../../data/models/paciente_model.dart';
 import '../../data/repositories/paciente_repository.dart';
+import '../../data/repositories/agendamento_repository.dart';
 import '../../data/models/atendimento_model.dart';
 import '../../data/repositories/atendimento_repository.dart';
 import '../../core/services/clinical_intelligence_service.dart';
@@ -19,7 +20,8 @@ import 'bloc/atendimento_bloc.dart';
 
 class RegistroAtendimentoScreen extends StatefulWidget {
   final String pacienteId;
-  const RegistroAtendimentoScreen({super.key, required this.pacienteId});
+  final String? agendamentoId;
+  const RegistroAtendimentoScreen({super.key, required this.pacienteId, this.agendamentoId});
 
   @override
   State<RegistroAtendimentoScreen> createState() => _RegistroAtendimentoScreenState();
@@ -42,6 +44,7 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
   String? _assinaturaPath;
   final _gpsService = GpsService();
   final _pacienteRepository = PacienteRepository();
+  final _agendamentoRepository = AgendamentoRepository();
 
   double? _lat;
   double? _lng;
@@ -55,15 +58,26 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
   @override
   void initState() {
     super.initState();
-    _carregarDados();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _carregarDados();
+    });
     _fcFocusNode.addListener(_monitorarSinaisVitais);
   }
 
   Future<void> _carregarDados() async {
+    if (!mounted) return;
     setState(() => _carregandoPaciente = true);
+    
     try {
-      _paciente = await _pacienteRepository.buscarPorId(widget.pacienteId);
-      final atendimentos = await AtendimentoRepository().buscarPorPaciente(widget.pacienteId);
+      // Busca dados em paralelo para ser mais rápido
+      final results = await Future.wait([
+        _pacienteRepository.buscarPorId(widget.pacienteId),
+        AtendimentoRepository().buscarPorPaciente(widget.pacienteId),
+      ]);
+
+      _paciente = results[0] as PacienteModel?;
+      final atendimentos = results[1] as List<AtendimentoModel>;
+
       if (atendimentos.isNotEmpty) {
         final fcs = atendimentos
             .where((a) => a.fc != null && double.tryParse(a.fc!) != null)
@@ -73,17 +87,18 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
           _mediaFCHistorica = fcs.reduce((a, b) => a + b) / fcs.length;
         }
 
-        // Gera insights para mostrar durante o atendimento
+        // Gera insights de forma assíncrona para não travar a UI
         final service = ClinicalIntelligenceService();
         _insightsRecentes = service.generateInsights(atendimentos);
       }
     } catch (e) {
       debugPrint('Erro ao buscar dados: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _carregandoPaciente = false);
+      }
+      _capturarGpsInicial();
     }
-    if (mounted) {
-      setState(() => _carregandoPaciente = false);
-    }
-    _capturarGpsInicial();
   }
 
   Future<void> _capturarGpsInicial() async {
@@ -175,15 +190,25 @@ class _RegistroAtendimentoScreenState extends State<RegistroAtendimentoScreen> {
         StorageService(),
       ),
       child: BlocConsumer<AtendimentoBloc, AtendimentoState>(
-        listener: (context, state) {
+        listener: (context, state) async {
           if (state is AtendimentoSalvo) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Atendimento registrado com sucesso!'),
-                backgroundColor: AppColors.secondary,
-              ),
-            );
-            context.pop();
+            if (widget.agendamentoId != null) {
+              try {
+                await _agendamentoRepository.atualizarStatus(widget.agendamentoId!, 'realizado');
+              } catch (e) {
+                debugPrint('Erro ao atualizar status do agendamento: $e');
+              }
+            }
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Atendimento registrado e agendamento concluído!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              context.go('/agenda');
+            }
           } else if (state is AtendimentoErro) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
