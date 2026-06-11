@@ -27,10 +27,6 @@ class AgendamentoRepository {
           .where('dataHora', isGreaterThanOrEqualTo: inicioDia)
           .where('dataHora', isLessThanOrEqualTo: fimDia);
       
-      if (!incluirRealizados) {
-        query = query.where('status', isNotEqualTo: 'realizado');
-      }
-
       final querySnapshot = await query.orderBy('dataHora').get();
 
       return querySnapshot.docs

@@ -20,15 +20,32 @@ class _AgendaScreenState extends State<AgendaScreen> {
   final _agendamentoRepository = AgendamentoRepository();
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  List<AgendamentoModel> _agendamentosDoDia = [];
+  List<AgendamentoModel> _todosAgendamentos = [];
   bool _carregando = false;
   bool _verRealizados = false;
+
+  List<AgendamentoModel> get _agendamentosFiltrados {
+    if (_verRealizados) return _todosAgendamentos;
+    return _todosAgendamentos
+        .where((a) => a.status != AgendamentoStatus.realizado)
+        .toList();
+  }
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _carregarAgendamentos(_selectedDay!);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _carregarAgendamentos(_selectedDay!);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_selectedDay != null) {
+      _carregarAgendamentos(_selectedDay!);
+    }
   }
 
   Future<void> _carregarAgendamentos(DateTime dia) async {
@@ -40,11 +57,10 @@ class _AgendaScreenState extends State<AgendaScreen> {
       final agendamentos = await _agendamentoRepository.buscarPorDia(
         usuario.uid, 
         dia,
-        incluirRealizados: _verRealizados,
       );
       if (mounted) {
         setState(() {
-          _agendamentosDoDia = agendamentos;
+          _todosAgendamentos = agendamentos;
           _carregando = false;
         });
       }
@@ -166,7 +182,6 @@ class _AgendaScreenState extends State<AgendaScreen> {
                       TextButton.icon(
                         onPressed: () {
                           setState(() => _verRealizados = !_verRealizados);
-                          _carregarAgendamentos(_selectedDay!);
                         },
                         icon: Icon(
                           _verRealizados ? Icons.visibility_off_rounded : Icons.visibility_rounded,
@@ -183,13 +198,13 @@ class _AgendaScreenState extends State<AgendaScreen> {
                   Expanded(
                     child: _carregando
                         ? const Center(child: CircularProgressIndicator())
-                        : _agendamentosDoDia.isEmpty
+                        : _agendamentosFiltrados.isEmpty
                             ? _buildEmptyState()
                             : ListView.builder(
                                 padding: const EdgeInsets.only(bottom: 100),
-                                itemCount: _agendamentosDoDia.length,
+                                itemCount: _agendamentosFiltrados.length,
                                 itemBuilder: (context, index) {
-                                  final agendamento = _agendamentosDoDia[index];
+                                  final agendamento = _agendamentosFiltrados[index];
                                   return _buildAgendamentoCard(agendamento);
                                 },
                               ),
@@ -336,9 +351,12 @@ class _AgendaScreenState extends State<AgendaScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () => context.push(
-                    '/atendimento/novo/${agendamento.pacienteId}?agendamentoId=${agendamento.id}',
-                  ),
+                  onPressed: () async {
+                    await context.push(
+                      '/atendimento/novo/${agendamento.pacienteId}?agendamentoId=${agendamento.id}',
+                    );
+                    _carregarAgendamentos(_selectedDay!);
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
                     foregroundColor: Colors.white,

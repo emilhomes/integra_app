@@ -228,22 +228,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 24),
                   
                   // CARDS DE RESUMO (ESTILO NUBANK)
+                  if (!_carregando && _totalHoje > 0 && _pendentesHoje == 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            '✓ Dia completo!',
+                            style: GoogleFonts.outfit(
+                              color: Colors.green,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   Row(
                     children: [
                       _buildSummaryCard(
-                        title: 'Atendimentos',
+                        title: 'Agendamentos hoje',
                         value: _totalHoje.toString(),
-                        icon: Icons.calendar_today_rounded,
+                        icon: Icons.calendar_month_rounded,
                         color: AppColors.primary,
                         isLoading: _carregando,
+                        isComplete: _totalHoje > 0 && _pendentesHoje == 0,
                       ),
                       const SizedBox(width: 16),
                       _buildSummaryCard(
-                        title: 'Restantes',
+                        title: 'Ainda pendentes',
                         value: _pendentesHoje.toString(),
                         icon: Icons.pending_actions_rounded,
-                        color: AppColors.secondary,
+                        color: _pendentesHoje == 0 && _totalHoje > 0 ? Colors.green : AppColors.secondary,
                         isLoading: _carregando,
+                        isComplete: _totalHoje > 0 && _pendentesHoje == 0,
+                        subtitle: _pendentesHoje == 0 && _totalHoje > 0 ? 'Tudo em dia!' : null,
                       ),
                     ],
                   ),
@@ -279,7 +302,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Agenda de Hoje',
+                        _pendentesHoje > 0 
+                            ? 'Agenda de Hoje ($_pendentesHoje pendentes)' 
+                            : (_totalHoje > 0 ? 'Agenda de Hoje ✓' : 'Agenda de Hoje'),
                         style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary),
                       ),
                       TextButton(
@@ -308,6 +333,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData icon,
     required Color color,
     bool isLoading = false,
+    bool isComplete = false,
+    String? subtitle,
   }) {
     return Expanded(
       child: Container(
@@ -315,6 +342,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
+          border: isComplete ? Border.all(color: Colors.green.withValues(alpha: 0.3), width: 2) : null,
           boxShadow: [
             BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 8)),
           ],
@@ -332,6 +360,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ? const ShimmerLoading(width: 40, height: 32)
               : Text(value, style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.w800, color: color)),
             Text(title, style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+            if (subtitle != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  subtitle,
+                  style: GoogleFonts.outfit(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w700),
+                ),
+              ),
           ],
         ),
       ),
@@ -437,49 +473,86 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildScheduleTile(AgendamentoModel agendamento) {
+    final isRealizado = agendamento.status == AgendamentoStatus.realizado;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              DateFormat('HH:mm').format(agendamento.dataHora),
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w800, color: AppColors.primary, fontSize: 15),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  agendamento.pacienteNome,
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.primary),
+      child: InkWell(
+        onTap: isRealizado ? null : () => context.go('/agenda'),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: (isRealizado ? Colors.grey : AppColors.primary).withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                Text(
-                  agendamento.tipoTerapia,
-                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[500]),
+                child: Text(
+                  DateFormat('HH:mm').format(agendamento.dataHora),
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w800, 
+                    color: isRealizado ? Colors.grey[400] : AppColors.primary, 
+                    fontSize: 15
+                  ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            agendamento.pacienteNome,
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w700, 
+                              fontSize: 16, 
+                              color: isRealizado ? Colors.grey[400] : AppColors.primary
+                            ),
+                          ),
+                        ),
+                        if (isRealizado)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '✓ Concluído',
+                              style: GoogleFonts.outfit(
+                                fontSize: 10, 
+                                fontWeight: FontWeight.bold, 
+                                color: Colors.green
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    Text(
+                      agendamento.tipoTerapia,
+                      style: GoogleFonts.outfit(
+                        fontSize: 13, 
+                        color: isRealizado ? Colors.grey[300] : Colors.grey[500]
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isRealizado)
+                const Icon(Icons.arrow_forward_rounded, color: AppColors.secondary, size: 20),
+            ],
           ),
-          if (agendamento.status == AgendamentoStatus.agendado)
-            IconButton(
-              onPressed: () => context.push('/atendimento/novo/${agendamento.pacienteId}'),
-              icon: const Icon(Icons.arrow_forward_rounded, color: AppColors.secondary),
-              style: IconButton.styleFrom(backgroundColor: AppColors.secondary.withValues(alpha: 0.1)),
-            ),
-        ],
+        ),
       ),
     );
   }
